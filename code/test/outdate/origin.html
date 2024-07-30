@@ -1,0 +1,45 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fibonacci Calculator</title>
+    <script>
+        const importObj = {
+  env: {
+    __stack_pointer: new WebAssembly.Global({ value: 'i32', mutable: true }, 0),
+    __memory_base: new WebAssembly.Global({ value: 'i32' }, 5),
+    __table_base: new WebAssembly.Global({ value: 'i32' }, 0),
+    memory: new WebAssembly.Memory({ initial: 0 }),
+  }
+};
+
+        function loadWebAssembly(fileName) {
+            return fetch(fileName)
+                .then(response => response.arrayBuffer())
+                .then(buffer => WebAssembly.compile(buffer))
+                .then(module => {return new WebAssembly.Instance(module,importObj) });
+        };
+        fInstance=loadWebAssembly('fib.wasm');
+            function calculateFibonacci() {
+                const n = parseInt(document.getElementById('inputNumber').value);
+                const result = fInstance.exports._z3fibi(n);
+                document.getElementById('result').textContent = `Fibonacci(${n}) = ${result}`;
+            }
+            
+            // Attach button click event listener
+            document.getElementById('calculateBtn').addEventListener('click', calculateFibonacci);
+        
+        
+    </script>
+</head>
+<body>
+    <h1>Fibonacci Calculator</h1>
+    <label for="inputNumber">Enter a number (n):</label>
+    <input type="number" id="inputNumber" min="0" value="0">
+    <button id="calculateBtn">Calculate Fibonacci</button>
+    <div id="result"></div>
+</body>
+</html>
+
