@@ -7,7 +7,7 @@
 //发生有效碰撞后执行CollisionAct()方法
 class EntityObj;
 
-//拥有Act()方法的对象
+//拥有Act,addNewAction和removeAction方法的对象
 class ActObj;
 
 //可移动的对象
@@ -18,10 +18,6 @@ class MoveObj;
 //无速度和加速度属性
 class PhysicsObj;
 
-//有附加行动的对象
-//即在预定义（编译时）就设定好的常规行动Act()之外有可能的运行时添加行动的对象，拥有addExtraAct和removeExtraAct方法，传入函数指针
-//已经是ActObj的子类
-class ExtraActObj;
 
 //有监听器的对象
 //即有可能需要在运行时判定某个条件以执行代码的对象,有addLiscenerOn()和removeLiscenerOn方法
@@ -34,6 +30,11 @@ protected:
     //碰撞箱
     clsn::CollisionBox clsnBox;
 public:
+    const clsn::CollisionBox& getCollisionBox() const {return clsnBox;} 
     virtual bool CollisionAct(EntityObj& another_obj) = 0;
 };
+//检测两个实体对象有没有发生碰撞
+inline gMath::tVector isIntersects(const EntityObj& b1, const EntityObj& b2){
+        return clsn::isIntersects(b1.getCrd(), b1.getCollisionBox(), b2.getCrd(), b2.getCollisionBox());
+    }
 #endif
