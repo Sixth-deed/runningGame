@@ -69,7 +69,15 @@ namespace gMath{
                 return tVector(x-r.x , y-r.y);
             }
     };
-
+    class mRectangele{
+    private:
+        axisV l,r,t,b;
+    public:
+        mRectangele(axisV left, axisV right, axisV top, axisV bottom):l(left),r(right),t(top),b(bottom){}
+        bool Inside(Crdinate crd){
+            return crd.get_x() <= r && crd.get_y() <=t && crd.get_x() >= l && crd.get_y() >= b;
+        }
+    };
 
 }
 #endif

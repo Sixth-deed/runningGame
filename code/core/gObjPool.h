@@ -2,6 +2,7 @@
 #ifndef GAME_gObjPool_AND_MANAGER
 #define GAME_gObjPool_AND_MANAGER
 #include "macros.h"
+#include "idHandler.h"
 #include <vector>
 #include <climits>
 #include <tuple>
@@ -13,27 +14,6 @@ using mID = unsigned int;
 template <typename gObjType>
 class gObjPool;
 
-//id管理器
-class idHandler{
-    private:
-        mID idPT;
-        static idHandler* mainIdHandler;
-    public:
-        idHandler(): idPT(0){}
-        //获取一个有效的新id
-        mID getNewID(){
-            if (idPT == UINT_MAX){
-                throw std::runtime_error("No More ID for use!"); 
-            }
-            return idPT++;
-        }
-
-
-        //给其他模块访问mainIDHandler的引用的方式
-        static idHandler& mainHandler(){
-            return *mainIdHandler;
-        }
-};
 
 template <typename gObjType>
 class gObjPool{
