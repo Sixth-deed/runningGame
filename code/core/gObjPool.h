@@ -7,7 +7,6 @@
 #include <climits>
 #include <tuple>
 #include <stdexcept>
-using mID = unsigned int;
 
 //对象池，用于管理对象分配和释放
 //gObjType --任意gObj类型
@@ -54,6 +53,14 @@ template <typename... Types>
 class ObjectManager {
     //gpt generated
     public:
+        
+        // 构造函数接受一个长度和模板长度相同的数组，用于初始化不同类型的对象池
+        explicit ObjectManager(std::size_t initialSizes[sizeof...(Types)] )
+        : pools(createPools(std::make_index_sequence<sizeof...(Types)>(), initialSizes)) {}
+        // 构造函数接受一个 initializer_list，用于初始化不同类型的对象池
+        explicit ObjectManager(std::initializer_list<std::size_t> initialSizes )
+        : pools(createPools(std::make_index_sequence<sizeof...(Types)>(), initialSizes.begin())) {}
+          
         template <typename gObjType>
             //获取对象
             gObjType* acquire() {
@@ -71,6 +78,16 @@ class ObjectManager {
         }
 
     private:
+        // 创建 ObjectPool 实例的辅助函数
+        template <std::size_t... Is>
+        auto createPools(std::index_sequence<Is...>, std::size_t initialSizes[sizeof...(Types)]) {
+             return std::tuple<gObjPool<Types>...>(gObjPool<Types>(initialSizes[Is])...);
+        }
+        template <std::size_t... Is> 
+        auto createPools(std::index_sequence<Is...>, const std::size_t* initialSizes) {
+             return std::tuple<gObjPool<Types>...>(gObjPool<Types>(initialSizes[Is])...);
+        }
+
         template <typename gObjType>
             gObjPool<gObjType>& getPool() {
                 return std::get<gObjPool<gObjType>>(pools);
@@ -85,9 +102,5 @@ class ObjectManager {
 };
 
 
-class gObj;
-//TEMP_TYPE做占位类，编译前会修改为所有继承自gObj类的类
-#define TEMP_TYPE gObj 
-ObjectManager<TEMP_TYPE> MainObjectManager;
 
 #endif

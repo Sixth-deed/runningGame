@@ -1,8 +1,8 @@
 #include "gObj.h"
-
-gObj& gObj::newObj(gMath::Crdinate& crd){
+template <typename managerT>
+gObj& gObj::newObj(gMath::Crdinate& crd, managerT& m ){
     
-    gObj& t = *MainObjectManager.acquire<gObj>();
+    gObj& t = m.acquire<gObj>();
     t.setCoordinate(crd);
     return t;
 }

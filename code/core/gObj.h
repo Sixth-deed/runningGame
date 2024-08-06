@@ -22,7 +22,11 @@ public:
     //用于将关于这个对象的有用的额外信息传往前端
     std::vector<std::string> flags;
     //获得一个对象
-    static gObj& newObj(gMath::Crdinate& );
+    template <typename managerT>
+    static gObj& newObj(gMath::Crdinate&, managerT&);
+    //获得一个对象
+    template <typename managerT>
+    static gObj& newObj(gMath::Crdinate&&, managerT&);
     const gMath::Crdinate& getCrd() const {
         return crd;
     }
