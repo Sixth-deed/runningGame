@@ -1,8 +1,16 @@
 #include "gObj.h"
 template <typename managerT>
-gObj& gObj::newObj(gMath::Crdinate& crd, managerT& m ){
+gObj& gObj::newObj(managerT &m,gMath::Crdinate& crd){
     
-    gObj& t = m.acquire<gObj>();
+    gObj& t = m.template acquire<gObj>();
+    t.setCoordinate(crd);
+    return t;
+}
+
+template <typename managerT, typename... Args>
+gObj& gObj::newObj(managerT &m,gMath::Crdinate& crd ,Args&... args){
+    
+    gObj& t = m.template acquire<gObj>();
     t.setCoordinate(crd);
     return t;
 }
