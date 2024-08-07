@@ -27,6 +27,10 @@ void Grid<gObjType>::collectSelf()
     collectFrom(rt);
     collectFrom(lb);
     collectFrom(rb);
+    mManager->removeGrid(lt);
+    mManager->removeGrid(rt);
+    mManager->removeGrid(lb);
+    mManager->removeGrid(rb);
 }
 
 template <typename gObjType>
@@ -143,8 +147,9 @@ Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::a
     auto pObj = mManager->aquireGrid();
     pObj->rect.l=l,pObj->rect.r=r,pObj->rect.t=t,pObj->rect.b=b;
     for (auto pt : v){
-        mManager->insert(gridID,pt->id);
+        mManager->insert(pObj->gridID,pt->id);
     }
+    return pObj;
 }
 
 template <typename gObjType>
@@ -152,7 +157,7 @@ Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::a
 {
     auto pObj = mManager->aquireGrid();
     pObj->rect.l=l,pObj->rect.r=r,pObj->rect.t=t,pObj->rect.b=b;
-    pObj->parentGrid = nullptr , pobj->root = this;
+    pObj->parentGrid = nullptr , pObj->root = pObj;
     return pObj;
 }
 
@@ -169,7 +174,7 @@ template <typename T>
 Grid<T> *GridManager<T>::aqurieGrid()
 {
     if (gridPool.empty()){
-        return new Grid<T>(this);
+        return new Grid<T>();
     }    
     else{
         auto grid=gridPool.back();
@@ -196,17 +201,17 @@ bool Grid<gObjType>::recursionForInnerGrid(gObjType *pObj, bool (Grid<gObjType>:
     //01: lt 左上
     //10: rb 右下
     //11: lb 左下
-    short state = (pObj.get_x() * 2 - l - r < 0) + (pObj.get_y()*2 - t - b < 0) *2;
+    short state = (pObj.get_x() * 2 - rect.l - rect.r < 0) + (pObj.get_y()*2 - rect.t - rect.b < 0) *2;
     
     switch(state){
     case 0:
-        return (rt -> *method)(args...);
+        return (rt->*method)(args...);
     case 1:
-        return (lt -> *method)(args...);
+        return (lt->*method)(args...);
     case 2:
-        return (rb -> *method)(args...);
+        return (rb->*method)(args...);
     case 3:
-        return (lb -> *method)(args...);
+        return (lb->*method)(args...);
     }
 }
 

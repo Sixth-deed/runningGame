@@ -17,7 +17,7 @@ class GridManager;
 
 //用于区分活跃部分和不活跃部分
 class ActiveRectangle;
-
+class gObj;
 
 template <typename gObjType>
 class Grid{
@@ -43,7 +43,7 @@ class Grid{
 
         
         //指向manager的指针
-        GridManager<gObjType>* mManager;
+        static GridManager<gObjType>* mManager;
         
         //持有的对象数字达到这个数就分割
         static const unsigned int threshold = 10;
@@ -54,7 +54,7 @@ class Grid{
         //辅助函数, 把inputGrid的引用全部添加到this的引用池中
         void collectFrom(const Grid<gObjType>*);
         //默认构造函数, GridManager 构造新对象时调用
-        Grid(GridManager<gObjType>* mpt): rect(0,0,0,0), gridID(gIDhdr.getNewID()), mManager(mpt) {};
+        Grid(): rect(0,0,0,0), gridID(gIDhdr.getNewID()) {}
         Grid(gMath::axisV l,gMath::axisV r,gMath::axisV t,gMath::axisV b
             , const std::vector<gObjType*>& v);
         template <typename... Args>
@@ -100,6 +100,8 @@ class Grid{
         //l,r,t,b分别为左右上下四个边界的坐标值
         static Grid<gObjType>* newGrid(gMath::axisV l,gMath::axisV r,gMath::axisV t,gMath::axisV b, Grid<gObjType>* parentGrid);
 };
+
+
 template <typename gObjType>
 class GridManager{
 private:
@@ -107,21 +109,24 @@ private:
 
     std::vector<Grid<gObjType>*> gridPool;
 public:
+    //创建GirdManager
+    //rfPoolbuckets -- 初始时哈希表桶的数量
+    //gridPoolInitialVolume -- 初始预估需要的Grid的数量
     GridManager(int rfPoolbuckets, int gridPoolInitialVolume): referencePool(rfPoolbuckets), gridPool(gridPoolInitialVolume,new Grid<gObjType>()){}
+    GridManager(std::tuple<int,int>& initialSize):referencePool(std::get<0>(initialSize)),gridPool(std::get<1>(initialSize)){}
     //获得引用
     gObjType* get(mID poolId, mID objId) const { return referencePool.at(poolId).at(objId);}  
     //插入到引用池
     void insert(mID poolId, gObjType* pt) { referencePool[poolId][pt->id]= pt; }
     //清除code对应的引用
-    void erase(umID poolId, mID objId) { referencePool[poolId].erase(objId); }
+    void erase(mID poolId, mID objId) { referencePool[poolId].erase(objId); }
     //释放内存用
     void clear() {referencePool.clear(); gridPool.clear();}
     //请求Grid
     Grid<gObjType>* aqurieGrid();
     //销毁Grid
     void removeGrid(Grid<gObjType>* grid);
-    ~GridManager(){clear()}
-
+    ~GridManager(){clear();}
     std::unordered_map<mID,gObjType*>* getGridReferences(mID id){
         return referencePool.at(id);
     }

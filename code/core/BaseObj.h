@@ -37,4 +37,16 @@ public:
 inline gMath::tVector isIntersects(const EntityObj& b1, const EntityObj& b2){
         return clsn::isIntersects(b1.getCrd(), b1.getCollisionBox(), b2.getCrd(), b2.getCollisionBox());
     }
+
+
+
+class ActObj : virtual public gObj{
+
+};
+
+
+
+class MoveObj : virtual public ActObj{
+
+};
 #endif
