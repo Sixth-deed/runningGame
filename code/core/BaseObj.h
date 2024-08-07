@@ -24,6 +24,10 @@ class PhysicsObj;
 //与ExtraActObj的主要不同是自带条件判断，异步执行
 class LiscenerObj;
 
+//保持片区活跃的对象
+//保持对对象activeRectangle范围内所有对象的更新
+class ActivateObj;
+
 #include "Collision.h"
 class EntityObj : virtual public gObj{
 protected:
@@ -49,4 +53,18 @@ class ActObj : virtual public gObj{
 class MoveObj : virtual public ActObj{
 
 };
+
+
+class ActivateObj :virtual public gObj{
+private:
+    ActiveRectangle activeRectangle;
+public:
+    //(x,y) 中心坐标
+    //toLeftTop 由中心指向方形格左上角顶点的向量
+    ActivateObj(gMath::axisV x, gMath::axisV y, gMath::tVector toLeftTop):
+    gObj(x,y),
+    activeRectangle(x + toLeftTop.x, x - toLeftTop.x, y + toLeftTop.y, y - toLeftTop.y)
+    {} 
+};
+
 #endif

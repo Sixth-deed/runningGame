@@ -17,6 +17,8 @@ protected:
     gMath::Crdinate crd;
     //对象id
     mID id;
+    gObj(gMath::axisV x, gMath::axisV y):crd(x,y){}
+    gObj(const gMath::Crdinate& cr):crd(cr){}
     gObj(): crd(0,0),id(idHandler::mainHandler().getNewID()) {}
 public:
     //用于将关于这个对象的有用的额外信息传往前端
