@@ -59,7 +59,7 @@ std::unordered_set<gObjType*>& Grid<gObjType>::frameUpDate(std::unordered_set<gO
             if (insideFlag)
                 reInsert(pt);
             else 
-                //movableObj的方法
+                //MoveObj的方法
                 pt->onOffTackler();
         }
             
@@ -82,11 +82,6 @@ void Grid<gObjType>::checkState()
     }
 }
 
-template <typename gObjType>
-inline void Grid<gObjType>::reInsert(gObjType *pt)
-{
-    root->insert(pt);
-}
 
 
 
@@ -103,11 +98,6 @@ idHandler Grid<T>::gIDhdr;
 
 
 
-template <typename T>
-inline T &Grid<T>::getObj(mID objID) const
-{
-    return *( (T*) ( (*mManager).get(gridID,objID) ) );
-}
 
 template <typename gObjType>
 bool Grid<gObjType>::insert(gObjType *pObj)
@@ -122,11 +112,7 @@ bool Grid<gObjType>::insert(gObjType *pObj)
     }
 }
 
-template <typename gObjType>
-inline bool Grid<gObjType>::erase(mID objID)
-{
-    return erase(&getObj(objID));
-}
+
 
 template <typename gObjType>
 bool Grid<gObjType>::erase(gObjType *pObj)
@@ -184,12 +170,7 @@ Grid<T> *GridManager<T>::aqurieGrid()
     return nullptr;
 }
 
-template <typename T>
-inline void GridManager<T>::removeGrid(Grid<T> *grid)
-{
-    gridPool.push_back(grid);
-    referencePool[grid->gridID].clear();
-}
+
 
 template <typename gObjType>
 template <typename... Args>

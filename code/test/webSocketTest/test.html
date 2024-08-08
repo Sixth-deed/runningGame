@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Client</title>
+</head>
+<body>
+    <script>
+        let ws = new WebSocket("ws://localhost:9002");
+
+        ws.onopen = function(event) {
+            console.log("Connection opened");
+            ws.send("Hello, Server!");
+        };
+
+        ws.onmessage = function(event) {
+            console.log("Received message: " + event.data);
+        };
+
+        ws.onclose = function(event) {
+            console.log("Connection closed");
+        };
+    </script>
+</body>
+</html>
+
