@@ -28,7 +28,7 @@ class Grid
 
 private:
     // left, right, top, bottom
-    gMath::mRectangele rect;
+    gMath::mRectangle rect;
     // left top, right top, left top, right top
     Grid<gObjType> *lt, *rt, *lb, *rb;
     // 如果分割自某个方格持有其指针
@@ -159,14 +159,14 @@ class GridManager
             return referencePool[id];
         }
     };
-class ActiveRectangle : gMath::mRectangele
+class ActiveRectangle : gMath::mRectangle
 {
 private:
     bool moved = false;
 
 public:
     static std::vector<ActiveRectangle *> rects;
-    ActiveRectangle(gMath::axisV left, gMath::axisV right, gMath::axisV top, gMath::axisV bottom) : mRectangele(left, right, top, bottom)
+    ActiveRectangle(gMath::axisV left, gMath::axisV right, gMath::axisV top, gMath::axisV bottom) : mRectangle(left, right, top, bottom)
     {
 
         rects.push_back(this);
@@ -193,7 +193,7 @@ public:
     {
         rects.clear();
     }
-    static bool intersectsWith(const gMath::mRectangele& rec){
+    static bool intersectsWith(const gMath::mRectangle& rec){
         for (auto A_rect : rects){
             if (A_rect->intersects(rec)){
                 return true;
