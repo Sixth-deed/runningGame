@@ -1,5 +1,6 @@
 #ifndef BASIC_GAME_OBJECT
 #define BASIC_GAME_OBJECT
+#include "Gmath.h"
 #include "gObj.h"
 
 
@@ -45,7 +46,21 @@ inline gMath::tVector isIntersects(const EntityObj& b1, const EntityObj& b2){
 
 
 class ActObj : virtual public gObj{
-
+protected:
+    std::unordered_map<std::string,void(*)()> actions;
+public:
+    void act(){
+        for (auto f : actions){
+            f.second();
+        }
+    }
+    ActObj(gMath::axisV x, gMath::axisV y): gObj(x,y), actions(1){}
+    void addNewAction(std::string& funcName,void (*f)()){
+        actions[funcName]=f;
+    }
+    void removeAction(std::string& funcName){
+        actions.erase(funcName);
+    } 
 };
 
 

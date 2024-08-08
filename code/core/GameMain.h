@@ -43,7 +43,7 @@ protected:
     std::vector<Grid<gObjType>>* activeGrids(){
         return std::get<gObjType>(activeGridsTuple);
     }
-    void upDateActiveGrids();
+    void updateActiveGrids();
     void initializeActiveGrids();
     mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int,int> > gridsInitialize, const gMath::mRectangele& rect);
 public:
@@ -91,7 +91,7 @@ public:
           auto ActRootGrid = std::get<Grid<ActObj>*>(theGame.rootGrids);
           auto EntityRootGrid = std::get<Grid<EntityObj>*>(theGame.rootGrids);
           //初始化第一个对象
-          auto& obj = newObj<MoveObj>(gMath::Crdinate{2,4},,);
+          auto& obj = newObj<MoveObj>(gMath::Crdinate{2,4});
           gObjRootGrid->insert(& obj);
           ActRootGrid->insert(&obj); 
           //初始化后续对象

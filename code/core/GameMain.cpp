@@ -1,19 +1,19 @@
 #include "GameMain.h"
 #include "Gmath.h"
 #include <thread>
-#include <ctime>
+#include <chrono>
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::deleteActiveGridsRef()
 {
     (delete std::get<GridManagingGameObjTypes>(activeGridsTuple), ...);
 }
 template <typename ManagerT, typename... GridManagingGameObjTypes>
-void mGame<ManagerT, GridManagingGameObjTypes...>::upDateActiveGrids()
+void mGame<ManagerT, GridManagingGameObjTypes...>::updateActiveGrids()
 {
     bool re = false;
     for (auto activeRect : ActiveRectangle::rects)
     {
-        re || = activeRect->is_moved();
+        re |= activeRect->is_moved();
     }
     if (re)
     {
@@ -24,7 +24,7 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::upDateActiveGrids()
     }
 }
 template <typename gObjType>
-void helper_InsertActiveGrids(vector<Grid<gObjType>*>* v_pt, Grid<gObjType>* g_pt){
+void helper_InsertActiveGrids(std::vector<Grid<gObjType>*>* v_pt, Grid<gObjType>* g_pt){
     if (ActiveRectangle::intersectsWith(g_pt->rect)){
         if (g_pt->is_divided()){
             helper_InsertActiveGrids(v_pt ,g_pt->LeftTop());
@@ -39,8 +39,8 @@ void helper_InsertActiveGrids(vector<Grid<gObjType>*>* v_pt, Grid<gObjType>* g_p
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::initializeActiveGrids()
 {
-    (std::get<GridManagingGameObjTypes>(activeGridsTuple) = new vector<Grid<GridManagingGameObjTypes>*>(),...)
-    (helper_InsertActiveGrids(std::get<GridManagingGameObjTypes>(activeGridsTuple),rootGrid<GridManagingGameObjTypes>),...)
+    ((std::get<GridManagingGameObjTypes>(activeGridsTuple) = new std::vector<Grid<GridManagingGameObjTypes>*>()),...);
+    ((helper_InsertActiveGrids(std::get<GridManagingGameObjTypes>(activeGridsTuple),rootGrid<GridManagingGameObjTypes>)), ...);
 }
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 mGame<ManagerT, GridManagingGameObjTypes...>::mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangele &rect) : mainObjManager(initialSizes),
@@ -62,12 +62,12 @@ mGame<ManagerT, GridManagingGameObjTypes...>::~mGame()
 }
 
 //60是帧率
-clock_t clocksPerFrame = ceil(CLOCKS_PER_SEC/ 60);
+std::chrono::milliseconds clocksPerFrame(1000/ 60);
 
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
 {
-    clock_t start = clock();
+    auto start = std::chrono::steady_clock::now();
     for (Grid<MoveObj> *moveObjGrid_p : activeGrids<MoveObj>())
     {
         moveObjGrid_p->forEachInGrid([](MoveObj *moveObj_p)
@@ -89,8 +89,9 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
     //更新加速度与速度
 
 
-    clock_t end = clock();
-    if (end - start < clocksPerFrame)
-        std::this_thread::sleep_for(clocksPerFrame- end + start) 
+    auto end = std::chrono::steady_clock::now();
+    auto elasped = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    if (elasped < clocksPerFrame)
+        std::this_thread::sleep_for(clocksPerFrame - elasped); 
     
 }
