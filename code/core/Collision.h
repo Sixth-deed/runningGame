@@ -15,11 +15,12 @@ namespace clsn{
             axisV l,r,t,b;
             //相对于中心的向量组，规定为顺时针方向的点连成的图形
             //必须保证是凸多边形
-            std::vector<tVector> vectors;
+            std::vector<tVector> &vectors;
+            std::vector<tVector> vectors_p;
             //所有边的法向量
             std::vector<tVector> ns;
         public :
-            CollisionBox(const std::vector<tVector>& array); 
+            CollisionBox(std::vector<tVector>* array); 
             //投影范围，辅助SAT判定
             struct Projection{double low; double high;
                 void addOffset(double off){

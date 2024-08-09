@@ -57,7 +57,7 @@ tVector clsn::isIntersects(const Crdinate &crd1 ,const CollisionBox& b1,const Cr
    
 }
 
-CollisionBox::CollisionBox(const std::vector<tVector>& array): vectors(array) , ns(array.size()){
+CollisionBox::CollisionBox( std::vector<tVector>* array): vectors(*array) ,vectors_p(array),ns(array.size()){
                 double tl,tr,tt,tb;
                 tl = tr = array[0].x;
                 tt = tb = array[0].y;

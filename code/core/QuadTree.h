@@ -85,7 +85,7 @@ public:
     */
     // 必须从细分类到粗分类调用
     // 返回当前仍可能需要更新的变量
-    std::unordered_set<gObjType *> &frameUpDate(std::unordered_set<gObjType *> &toUpdate);
+    std::unordered_set<gObjType *> &frameUpDate(std::unordered_set<gObjType *> &toUpdate, std::unordered_set<gObjType*> &toRelease);
     // 检测方格是否要分裂或者重新合并,如果需要, 执行相应操作
     void checkState();
     // 创建新根Grid
@@ -117,7 +117,9 @@ public:
     Grid<gObjType> *RightBottom(){
         return rb;
     }
-    
+    int count(mID objId){
+        return mManager->count(gridID, objId);
+    } 
 };
 template <typename gObjType>
 class GridManager
@@ -148,6 +150,9 @@ class GridManager
         {
             referencePool.clear();
             gridPool.clear();
+        }
+        int count(mID poolid, mID objId){
+            return referencePool[poolid].count(objId);
         }
         // 请求Grid
         Grid<gObjType> *aqurieGrid();

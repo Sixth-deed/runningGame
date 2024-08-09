@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <utility>
 
+struct gameLoopParam;
+
 /*
 游戏实例基类
 
@@ -30,7 +32,7 @@ protected:
     
     
     void deleteActiveGridsRef();
-
+    void ActiveGridsRefernceUpdate(std::unordered_set<MoveObj*>& toUpdate, std::unordered_set<MoveObj*>& toRelease);
     template <typename gObjType, typename... Args>
     gObjType& newObj(Args ...args){
         return gObjType::newObj(mainObjManager,args...);
@@ -40,7 +42,7 @@ protected:
         return std::get<Grid<gObjType>*> (rootGrids);
     }
     template <typename gObjType>
-    std::vector<Grid<gObjType>>* activeGrids(){
+    std::vector<Grid<gObjType>*>* activeGrids(){
         return std::get<gObjType>(activeGridsTuple);
     }
     void updateActiveGrids();
@@ -85,7 +87,7 @@ public:
 
     static mGame& exampleInitialize()   
     {
-          auto& theGame = mGame< ObjectManager<MoveObj,EntityObj,ActObj>    , gObj,ActObj,EntityObj>
+          auto& theGame = mGame< ObjectManager<MoveObj,EntityObj,ActObj>    , EntityObj,ActObj,gObj>
               ({2, 1, 1} , { {4, 1}, {3, 1} ,{1, 1} }, gMath::mRectangle(-1000,1000,500,-300));
           auto gObjRootGrid = std::get<Grid<gObj>*>(theGame.rootGrids);
           auto ActRootGrid = std::get<Grid<ActObj>*>(theGame.rootGrids);
@@ -109,7 +111,7 @@ public:
         
          return std::tuple<Grid<GridManagingGameObjTypes>* ...>(new Grid<GridManagingGameObjTypes>(rect)...);
     }
-    void GameLoop();
+    void GameLoop(gameLoopParam& param);
 };
 
 #endif
