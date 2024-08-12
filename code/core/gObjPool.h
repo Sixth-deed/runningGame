@@ -13,7 +13,16 @@
 template <typename gObjType>
 class gObjPool;
 
-
+/**
+ * @class gObjPool
+ * @brief A template class for managing a pool of game objects.
+ * 
+ * This class provides a way to manage a pool of game objects, allowing for efficient
+ * creation and destruction of objects. It uses a vector to store the objects and
+ * provides methods for acquiring and releasing objects.
+ * 
+ * @tparam gObjType The type of game object to be managed.
+ */
 template <typename gObjType>
 class gObjPool{
     private :
@@ -50,6 +59,13 @@ class gObjPool{
 //用于管理所有类型的游戏对象（继承自gObj）的管理器
 //Types是所有传入的类型模板
 template <typename... Types>
+/**
+ * @class ObjectManager
+ * @brief A manager class for managing all types of game objects that inherit from gObj.
+ * It provides methods for acquiring and releasing objects.
+ * 
+ * @tparam Types The types of game objects to be managed.
+ */
 class ObjectManager {
     //gpt generated
     public:
@@ -83,6 +99,15 @@ class ObjectManager {
         auto createPools(std::index_sequence<Is...>, std::size_t initialSizes[sizeof...(Types)]) {
              return std::tuple<gObjPool<Types>...>(gObjPool<Types>(initialSizes[Is])...);
         }
+        /**
+         * Creates a tuple of gObjPool instances for the given types, 
+         * initializing each pool with the corresponding size from the initialSizes array.
+         *
+         * @param std::index_sequence<Is...> an index sequence representing the types
+         * @param const std::size_t* initialSizes an array of initial sizes for the pools
+         *
+         * @return a tuple of gObjPool instances
+         */
         template <std::size_t... Is> 
         auto createPools(std::index_sequence<Is...>, const std::size_t* initialSizes) {
              return std::tuple<gObjPool<Types>...>(gObjPool<Types>(initialSizes[Is])...);
@@ -93,6 +118,15 @@ class ObjectManager {
                 return std::get<gObjPool<gObjType>>(pools);
             }
 
+        /**
+         * Clears all object pools managed by this ObjectManager instance.
+         *
+         * @tparam Is  a parameter pack of indices corresponding to the object pools to clear
+         *
+         * @param std::index_sequence<Is...>  an index sequence parameter used to unpack the parameter pack
+         *
+         * @return void
+         */
         template <std::size_t... Is>
             void clearPools(std::index_sequence<Is...>) {
                 (std::get<Is>(pools).clear(), ...);
