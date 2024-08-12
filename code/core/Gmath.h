@@ -36,6 +36,11 @@ namespace gMath{
             tVector operator/(double a) const{
                 return tVector(x/a,y/a);
             }
+            tVector& operator+=(const tVector& r){
+                x += r.x;
+                y += r.y;
+                return *this;
+            }
     };
     //坐标类
     class Crdinate {
@@ -68,19 +73,87 @@ namespace gMath{
             tVector operator-(const Crdinate& r) const{
                 return tVector(x-r.x , y-r.y);
             }
+            Crdinate& operator+=(const tVector& v){
+                x += static_cast<axisV>(v.x);
+                y += static_cast<axisV>(v.y);
+                return *this;
+            }
     };
-    class mRectangele{
+    class mRectangle{
     protected:
         axisV l,r,t,b;
     public:
-        mRectangele(axisV left, axisV right, axisV top, axisV bottom):l(left),r(right),t(top),b(bottom){}
+        mRectangle(axisV left, axisV right, axisV top, axisV bottom):l(left),r(right),t(top),b(bottom){}
         bool Inside(Crdinate crd){
             return crd.get_x() <= r && crd.get_y() <=t && crd.get_x() >= l && crd.get_y() >= b;
         }
-        bool intersects(const mRectangele& rec){
+        bool intersects(const mRectangle& rec){
             return l <= rec.r && r >= rec.l && t >= rec.b && b <= rec.t;
         }
     };
+   class Angle {
+public:
+    // 构造函数
+    Angle(double angleInDegrees = 0.0) : degrees(angleInDegrees) {
+        normalize();
+    }
 
+    // 获取以度数表示的角度
+    double getDegrees() const {
+        return degrees;
+    }
+
+    // 设置以度数表示的角度
+    void setDegrees(double angleInDegrees) {
+        degrees = angleInDegrees;
+        normalize();
+    }
+
+    // 获取以弧度表示的角度
+    double getRadians() const {
+        return degreesToRadians(degrees);
+    }
+
+    // 设置以弧度表示的角度
+    void setRadians(double angleInRadians) {
+        degrees = radiansToDegrees(angleInRadians);
+        normalize();
+    }
+
+    // 角度加法
+    Angle operator+(const Angle& other) const {
+        return Angle(degrees + other.degrees);
+    }
+
+    // 角度减法
+    Angle operator-(const Angle& other) const {
+        return Angle(degrees - other.degrees);
+    }
+    Angle& operator+=(const Angle& other) {
+        degrees += other.degrees;
+        return *this;
+    }
+
+private:
+    double degrees;
+
+    // 将角度规范化到0到360度之间
+    void normalize() {
+        degrees = fmod(degrees, 360.0);
+        if (degrees < 0) {
+            degrees += 360.0;
+        }
+    }
+
+    // 辅助函数：度数转弧度
+    static double degreesToRadians(double degrees) {
+        return degrees * M_PI / 180.0;
+    }
+
+    // 辅助函数：弧度转度数
+    static double radiansToDegrees(double radians) {
+        return radians * 180.0 / M_PI;
+    }
+};
 }
 #endif

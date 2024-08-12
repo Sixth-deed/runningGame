@@ -1,6 +1,6 @@
 #include "QuadTree.h"
 
-template <typename gObjType>
+    template <typename gObjType>
 void Grid<gObjType>::divideSelf()
 {
     gMath::axisV avLR = (rect.l + rect.r) / 2 , avTB=(rect.t+rect.b)/2;
@@ -19,7 +19,7 @@ void Grid<gObjType>::divideSelf()
     }
 }
 
-template <typename gObjType>
+    template <typename gObjType>
 void Grid<gObjType>::collectSelf()
 {
     divided = false;
@@ -33,7 +33,7 @@ void Grid<gObjType>::collectSelf()
     mManager->removeGrid(rb);
 }
 
-template <typename gObjType>
+    template <typename gObjType>
 void Grid<gObjType>::collectFrom(const Grid<gObjType>* pGrid)
 {
     for (auto pObj : this->mManager->getGridReferences(pGrid)){
@@ -41,33 +41,39 @@ void Grid<gObjType>::collectFrom(const Grid<gObjType>* pGrid)
     }
 }
 
-template <typename gObjType>
-std::unordered_set<gObjType*>& Grid<gObjType>::frameUpDate(std::unordered_set<gObjType*> &toUpdate)
+    template <typename gObjType>
+std::unordered_set<gObjType*>& Grid<gObjType>::frameUpDate(std::unordered_set<gObjType*> &toUpdate, std::unordered_set<gObjType*>& toRelease)
 {
 
     for (auto pt : toUpdate){
-        if (Inside(pt))
-            toUpdate.erase(pt);
-        else{
-            bool insideFlag=false;
-            for (auto prt : ActiveRectangle::rects){
-                if (prt->Inside(pt->getCrd())){
-                    insideFlag = true;
-                    break;
+        if (count(pt->id)){
+            if (Inside(pt))
+                toUpdate.erase(pt);
+            else{
+                bool insideFlag=false;
+                for (auto prt : ActiveRectangle::rects){
+                    if (prt->Inside(pt->getCrd())){
+                        insideFlag = true;
+                        break;
+                    }
                 }
+                if (insideFlag)
+                    reInsert(pt);
+                else 
+                    //MoveObj的方法
+                    if (!pt->onOffTackler()){
+                        erase(pt);
+                        toUpdate.erase(pt);
+                        toRelease.insert(pt);                        
+                    }
             }
-            if (insideFlag)
-                reInsert(pt);
-            else 
-                //MoveObj的方法
-                pt->onOffTackler();
         }
-            
+
     }
     return toUpdate;
 }
 
-template <typename gObjType>
+    template <typename gObjType>
 void Grid<gObjType>::checkState()
 {
     if (divided){
@@ -85,10 +91,10 @@ void Grid<gObjType>::checkState()
 
 
 
-template <typename T>
+    template <typename T>
 Grid<T>::Grid(gMath::axisV l_, gMath::axisV r_, gMath::axisV t_, gMath::axisV b_, const std::vector<T *> &v) : rect(l_,r_,t_,b_)
 {
-   //将vector中的对象向引用池中绑定
+    //将vector中的对象向引用池中绑定
     for (T* pt : v){
         insert(pt);
     }
@@ -99,10 +105,10 @@ idHandler Grid<T>::gIDhdr;
 
 
 
-template <typename gObjType>
+    template <typename gObjType>
 bool Grid<gObjType>::insert(gObjType *pObj)
 {
-    
+
     if (divided){
         return recursionForInnerGrid( pObj , &insert , pObj);
     }
@@ -114,10 +120,10 @@ bool Grid<gObjType>::insert(gObjType *pObj)
 
 
 
-template <typename gObjType>
+    template <typename gObjType>
 bool Grid<gObjType>::erase(gObjType *pObj)
 {
-    
+
     if (divided){
         return recursionForInnerGrid( pObj , &insert , pObj);
     }
@@ -127,7 +133,7 @@ bool Grid<gObjType>::erase(gObjType *pObj)
     }
 }
 
-template <typename gObjType>
+    template <typename gObjType>
 Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::axisV t, gMath::axisV b, const std::vector<gObjType *> &v)
 {
     auto pObj = mManager->aquireGrid();
@@ -138,7 +144,7 @@ Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::a
     return pObj;
 }
 
-template <typename gObjType>
+    template <typename gObjType>
 Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::axisV t, gMath::axisV b)
 {
     auto pObj = mManager->aquireGrid();
@@ -147,7 +153,7 @@ Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::a
     return pObj;
 }
 
-template <typename gObjType>
+    template <typename gObjType>
 Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::axisV t, gMath::axisV b, Grid<gObjType> *parentGrid)
 {
     auto pObj = mManager->aquireGrid();
@@ -156,7 +162,7 @@ Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::a
     return pObj;
 }
 
-template <typename T>
+    template <typename T>
 Grid<T> *GridManager<T>::aqurieGrid()
 {
     if (gridPool.empty()){
@@ -173,7 +179,7 @@ Grid<T> *GridManager<T>::aqurieGrid()
 
 
 template <typename gObjType>
-template <typename... Args>
+    template <typename... Args>
 bool Grid<gObjType>::recursionForInnerGrid(gObjType *pObj, bool (Grid<gObjType>::*method)(Args...), Args... args)
 {
     //对象在坐标轴上将归为右边的, 上方的方块中
@@ -183,16 +189,16 @@ bool Grid<gObjType>::recursionForInnerGrid(gObjType *pObj, bool (Grid<gObjType>:
     //10: rb 右下
     //11: lb 左下
     short state = (pObj.get_x() * 2 - rect.l - rect.r < 0) + (pObj.get_y()*2 - rect.t - rect.b < 0) *2;
-    
+
     switch(state){
-    case 0:
-        return (rt->*method)(args...);
-    case 1:
-        return (lt->*method)(args...);
-    case 2:
-        return (rb->*method)(args...);
-    case 3:
-        return (lb->*method)(args...);
+        case 0:
+            return (rt->*method)(args...);
+        case 1:
+            return (lt->*method)(args...);
+        case 2:
+            return (rb->*method)(args...);
+        case 3:
+            return (lb->*method)(args...);
     }
 }
 

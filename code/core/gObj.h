@@ -8,6 +8,9 @@
 #include "idHandler.h"
 #include "QuadTree.h"
 
+
+#define GRID_NEEDED
+#define PRIORITY_LEVEL0
 //游戏对象基类
 //规定了游戏对象的一些基本属性
 class gObj {
@@ -17,21 +20,16 @@ protected:
     gMath::Crdinate crd;
     //对象id
     mID id;
-    gObj(gMath::axisV x, gMath::axisV y):crd(x,y){}
-    gObj(const gMath::Crdinate& cr):crd(cr){}
-    gObj(): crd(0,0),id(idHandler::mainHandler().getNewID()) {}
+    gMath::Angle angle;
+    gObj(gMath::axisV x, gMath::axisV y, gMath::Angle angle_ = 0.0):crd(x,y), angle(angle_){}
+    gObj(const gMath::Crdinate& cr,  gMath::Angle angle_ = 0.0):crd(cr), angle(angle_){}
+    gObj(): crd(0,0),id(idHandler::mainHandler().getNewID()),angle(0.0) {}
 public:
     //用于将关于这个对象的有用的额外信息传往前端
     std::vector<std::string> flags;
     //获得一个对象
     template <typename managerT>
-    static gObj& newObj(managerT &m,gMath::Crdinate&);
-    //获得一个对象
-    template <typename managerT>
-    static gObj& newObj(managerT &m,gMath::Crdinate&&);
-    //获得一个对象
-    template <typename managerT,typename... Args>
-    static gObj& newObj(managerT &m, gMath::Crdinate& ,Args&... args);
+    static gObj& newObj(managerT &m,const gMath::Crdinate&, const gMath::Angle &angle_);
     const gMath::Crdinate& getCrd() const {
         return crd;
     }
@@ -39,6 +37,14 @@ public:
     void setCoordinate(gMath::Crdinate crd_){
         crd=crd_;
     }
-    //需要重载
+    static const bool movable = false;
+    static const bool rotatable = false;
 };
+template <typename managerT, typename gObjType>
+inline gObjType& basicObjInit(managerT& m,const gMath::Crdinate& crd = gMath::Crdinate(0, 0 ), const gMath::Angle& angle_ = 0.0){
+    gObjType& gobj = m.template acquire<gObjType>();
+    gobj.setCoordinate(crd);
+    gobj.angle = angle_;
+    return gobj;
+}
 #endif 

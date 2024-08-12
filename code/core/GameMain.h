@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <utility>
 
+struct gameLoopParam;
+
 /*
 游戏实例基类
 
@@ -30,7 +32,7 @@ protected:
     
     
     void deleteActiveGridsRef();
-
+    void ActiveGridsRefernceUpdate(std::unordered_set<MoveObj*>& toUpdate, std::unordered_set<MoveObj*>& toRelease);
     template <typename gObjType, typename... Args>
     gObjType& newObj(Args ...args){
         return gObjType::newObj(mainObjManager,args...);
@@ -40,12 +42,12 @@ protected:
         return std::get<Grid<gObjType>*> (rootGrids);
     }
     template <typename gObjType>
-    std::vector<Grid<gObjType>>* activeGrids(){
+    std::vector<Grid<gObjType>*>* activeGrids(){
         return std::get<gObjType>(activeGridsTuple);
     }
     void updateActiveGrids();
     void initializeActiveGrids();
-    mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int,int> > gridsInitialize, const gMath::mRectangele& rect);
+    mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int,int> > gridsInitialize, const gMath::mRectangle& rect);
 public:
     ~mGame();
     //初始化游戏
@@ -85,8 +87,8 @@ public:
 
     static mGame& exampleInitialize()   
     {
-          auto& theGame = mGame< ObjectManager<MoveObj,EntityObj,ActObj>    , gObj,ActObj,EntityObj>
-              ({2, 1, 1} , { {4, 1}, {3, 1} ,{1, 1} }, gMath::mRectangele(-1000,1000,500,-300));
+          auto& theGame = mGame< ObjectManager<MoveObj,EntityObj,ActObj>    , EntityObj,ActObj,gObj>
+              ({2, 1, 1} , { {4, 1}, {3, 1} ,{1, 1} }, gMath::mRectangle(-1000,1000,500,-300));
           auto gObjRootGrid = std::get<Grid<gObj>*>(theGame.rootGrids);
           auto ActRootGrid = std::get<Grid<ActObj>*>(theGame.rootGrids);
           auto EntityRootGrid = std::get<Grid<EntityObj>*>(theGame.rootGrids);
@@ -105,11 +107,11 @@ public:
     }
 
     template <std::size_t... Is> 
-    std::tuple<Grid<GridManagingGameObjTypes>*...>& createRootGrids   (std::index_sequence<Is...>, const gMath::mRectangele& rect) {
+    std::tuple<Grid<GridManagingGameObjTypes>*...>& createRootGrids   (std::index_sequence<Is...>, const gMath::mRectangle& rect) {
         
          return std::tuple<Grid<GridManagingGameObjTypes>* ...>(new Grid<GridManagingGameObjTypes>(rect)...);
     }
-    void GameLoop();
+    void GameLoop(gameLoopParam& param);
 };
 
 #endif

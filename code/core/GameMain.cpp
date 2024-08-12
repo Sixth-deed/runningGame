@@ -1,7 +1,10 @@
 #include "GameMain.h"
+#include "BaseObj.h"
 #include "Gmath.h"
+#include <algorithm>
 #include <thread>
 #include <chrono>
+#include <unordered_set>
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::deleteActiveGridsRef()
 {
@@ -43,7 +46,7 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::initializeActiveGrids()
     ((helper_InsertActiveGrids(std::get<GridManagingGameObjTypes>(activeGridsTuple),rootGrid<GridManagingGameObjTypes>)), ...);
 }
 template <typename ManagerT, typename... GridManagingGameObjTypes>
-mGame<ManagerT, GridManagingGameObjTypes...>::mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangele &rect) : mainObjManager(initialSizes),
+mGame<ManagerT, GridManagingGameObjTypes...>::mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect) : mainObjManager(initialSizes),
                                                                                                                                                                                                     GridManagers(createGirdManagers(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), gridsInitialize.begin())),
                                                                                                                                                                                                     rootGrids(createRootGrids(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), rect))
 {
@@ -64,19 +67,36 @@ mGame<ManagerT, GridManagingGameObjTypes...>::~mGame()
 //60是帧率
 std::chrono::milliseconds clocksPerFrame(1000/ 60);
 
+//用于辅助GameLoop从上一次GameLoop结果获取信息的结构体
+struct gameLoopParam{
+    int numOfActiveMoveObj;
+};
+
 template <typename ManagerT, typename... GridManagingGameObjTypes>
-void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
+void mGame<ManagerT, GridManagingGameObjTypes...>::ActiveGridsRefernceUpdate(std::unordered_set<MoveObj*>& toUpdate, std::unordered_set<MoveObj*>& toRelease){
+    ((std::for_each(activeGrids<GridManagingGameObjTypes>()->begin(),activeGrids<GridManagingGameObjTypes>->end(),[&](Grid<GridManagingGameObjTypes>* grid){
+        grid->frameUpDate(toUpdate,toRelease); 
+     }))
+     ,...);
+}
+template <typename ManagerT, typename... GridManagingGameObjTypes>
+void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop(gameLoopParam& param)
 {
+    std::unordered_set<MoveObj*> toUpdate(param.numOfActiveMoveObj*2);
+    std::unordered_set<MoveObj*> toRelease(3);
     auto start = std::chrono::steady_clock::now();
-    for (Grid<MoveObj> *moveObjGrid_p : activeGrids<MoveObj>())
+    for (Grid<ActObj > *actobjGrid_p  : activeGrids<ActObj >())
     {
-        moveObjGrid_p->forEachInGrid([](MoveObj *moveObj_p)
+        actobjGrid_p->forEachInGrid([](ActObj *actObj_p, std::unordered_set<MoveObj*> toUpdate)
             {
-            //需实现
-            moveObj_p->updatePosition(); 
+                 actObj_p->act();
+                 if (actObj_p ->movable){
+                    toUpdate.insert(reinterpret_cast<MoveObj*>(actObj_p));
+                 }
             });
     }
     updateActiveGrids();
+    ActiveGridsRefernceUpdate(toUpdate, toRelease);
     //约束修正
     //...
 
@@ -93,5 +113,5 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
     auto elasped = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     if (elasped < clocksPerFrame)
         std::this_thread::sleep_for(clocksPerFrame - elasped); 
-    
+    GameLoop(param); 
 }

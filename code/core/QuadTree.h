@@ -28,7 +28,7 @@ class Grid
 
 private:
     // left, right, top, bottom
-    gMath::mRectangele rect;
+    gMath::mRectangle rect;
     // left top, right top, left top, right top
     Grid<gObjType> *lt, *rt, *lb, *rb;
     // 如果分割自某个方格持有其指针
@@ -85,7 +85,7 @@ public:
     */
     // 必须从细分类到粗分类调用
     // 返回当前仍可能需要更新的变量
-    std::unordered_set<gObjType *> &frameUpDate(std::unordered_set<gObjType *> &toUpdate);
+    std::unordered_set<gObjType *> &frameUpDate(std::unordered_set<gObjType *> &toUpdate, std::unordered_set<gObjType*> &toRelease);
     // 检测方格是否要分裂或者重新合并,如果需要, 执行相应操作
     void checkState();
     // 创建新根Grid
@@ -117,7 +117,9 @@ public:
     Grid<gObjType> *RightBottom(){
         return rb;
     }
-    
+    int count(mID objId){
+        return mManager->count(gridID, objId);
+    } 
 };
 template <typename gObjType>
 class GridManager
@@ -149,6 +151,9 @@ class GridManager
             referencePool.clear();
             gridPool.clear();
         }
+        int count(mID poolid, mID objId){
+            return referencePool[poolid].count(objId);
+        }
         // 请求Grid
         Grid<gObjType> *aqurieGrid();
         // 销毁Grid
@@ -159,14 +164,14 @@ class GridManager
             return referencePool[id];
         }
     };
-class ActiveRectangle : gMath::mRectangele
+class ActiveRectangle : gMath::mRectangle
 {
 private:
     bool moved = false;
 
 public:
     static std::vector<ActiveRectangle *> rects;
-    ActiveRectangle(gMath::axisV left, gMath::axisV right, gMath::axisV top, gMath::axisV bottom) : mRectangele(left, right, top, bottom)
+    ActiveRectangle(gMath::axisV left, gMath::axisV right, gMath::axisV top, gMath::axisV bottom) : mRectangle(left, right, top, bottom)
     {
 
         rects.push_back(this);
@@ -193,7 +198,7 @@ public:
     {
         rects.clear();
     }
-    static bool intersectsWith(const gMath::mRectangele& rec){
+    static bool intersectsWith(const gMath::mRectangle& rec){
         for (auto A_rect : rects){
             if (A_rect->intersects(rec)){
                 return true;
