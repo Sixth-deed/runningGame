@@ -136,6 +136,13 @@ class GridManager
         GridManager(int rfPoolbuckets, int gridPoolInitialVolume) : referencePool(rfPoolbuckets), gridPool(gridPoolInitialVolume, new Grid<gObjType>()) {
             Grid<gObjType>::mManager = this;
         }
+        /**
+         * Constructs a GridManager instance with the specified initial size.
+         *
+         * @param initialSize A tuple containing the initial size of the reference pool and the grid pool.
+         *
+         * @note The reference pool size is doubled to accommodate for potential growth.
+         */
         GridManager(std::tuple<int, int> &initialSize) : referencePool(std::get<0>(initialSize)*2), gridPool(std::get<1>(initialSize)) {
             Grid<gObjType>::mManager = this;
         }

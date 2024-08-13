@@ -6,9 +6,3 @@ bool Grid<EntityObj>::recursionForInnerGrid(EntityObj *pObj, bool (Grid<EntityOb
     aa
 }
 
-void MoveObj::onOffTackler()
-{
-    a
-}
-
-
