@@ -5,11 +5,19 @@
 #include <vector>
 #include <algorithm>
 #include <thread>
+
+#include "lib/mOptional.h"
+
+
 namespace clsn
 {
 
     using namespace gMath;
+    //碰撞箱类
     class CollisionBox;
+    //用于记录碰撞的局部信息，包括两个碰撞体各自的接触点和分离法向量和切向量（规格化的）
+    struct CollisionLocal;
+
     class CollisionBox
     {
     private:
@@ -43,28 +51,28 @@ namespace clsn
         struct Projection
         {
             double low;
-            double high;
+            const tVector toLowPoint;
+             double high;
+            const tVector toHighPoint;
+            Projection() = default;
+            Projection(const double l, const tVector&& tlp, const double h, const tVector&& thp) : low(l), toLowPoint(tlp), high(h), toHighPoint(thp) {}
+            //只启用移动语义
+            Projection(Projection&& p ) = default;
+            Projection(const Projection& p ) = delete;
+            Projection& operator=(Projection&& p ) = default;
+            Projection& operator=(const Projection& p ) = delete;
             void addOffset(double off)
             {
                 low += off;
                 high += off;
             }
+            
         };
 
-        /**
- * Checks if two objects are really intersecting, taking into account their collision boxes and angles.
- *
- * @param crd1 The coordinate of the first object.
- * @param b1 The collision box of the first object.
- * @param angle1 The angle of the first object.
- * @param crd2 The coordinate of the second object.
- * @param b2 The collision box of the second object.
- * @param angle2 The angle of the second object.
- *
- * @return A vector representing the minimum translation to separate the two objects, or a zero vector if they are not intersecting.
- */
-        friend tVector isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2);
+
+        friend mOptional<CollisionLocal> isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2);
         // 将整个碰撞箱投影到某条轴上
+        // 需要保证axis是单位向量
         Projection projectTo(const tVector &axis) const;
         // 整体旋转碰撞箱
         void RotateTo(const Angle &angle);
@@ -73,19 +81,44 @@ namespace clsn
             return vectors[0].x;
         }
         // 粗检测
-        inline friend bool isOuterIntersect(const Crdinate &crd1, const CollisionBox &b1, const Crdinate &crd2, const CollisionBox &b2);
+        friend inline bool isOuterIntersect(const Crdinate &crd1, const CollisionBox &b1, const Crdinate &crd2, const CollisionBox &b2);
         std::vector<tVector>* getShape(){
             return vectors_p;
         }
     };
     
-    tVector isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2);
+    mOptional<CollisionLocal> isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2);
     inline bool clsn::isOuterIntersect(const Crdinate &crd1, const CollisionBox &b1, const Crdinate &crd2, const CollisionBox &b2)
     {
         // 由对象1的中心点指向对象2的中心点的向量
         tVector offset12 = crd2 - crd1;
         return offset12.y + b2.b - b1.t < 0 && offset12.y + b2.t - b1.b > 0 && offset12.x + b2.l - b1.r < 0 && offset12.x + b2.r - b1.l > 0;
     }
+    
+    /**
+     * @brief 碰撞局部信息，包括两个碰撞体各自的接触点和分离法向量和切向量（单位化过的）
+     * 
+     * @var toBody1_cp 相对实体1重心指向碰撞点的向量
+     * @var toBody2_cp 相对实体2重心指向碰撞点的向量
+     * @var normal     碰撞法向量
+     * @var tangent    碰撞切向量
+     */
+    struct CollisionLocal
+    {
+        //相对实体1重心指向碰撞点的向量
+        gMath::tVector toBody1_cp;
+        //相对实体2重心指向碰撞点的向量
+        gMath::tVector toBody2_cp;
+        gMath::tVector normal;
+        gMath::tVector tangent;
+        CollisionLocal(const gMath::tVector &toBody1_cp_, const gMath::tVector &toBody2_cp_, const gMath::tVector &normal_, const gMath::tVector &tangent_) : toBody1_cp(toBody1_cp_), toBody2_cp(toBody2_cp_), normal(normal_), tangent(tangent_) {}
+        
+        //只允许移动
+        CollisionLocal(const CollisionLocal &cl) = delete;
+        CollisionLocal(CollisionLocal &&cl) = default;
+        CollisionLocal& operator=(const CollisionLocal &cl) = delete;
+        CollisionLocal& operator=(CollisionLocal &&cl) = default;
+    };
 }
 
 #endif

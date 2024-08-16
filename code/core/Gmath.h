@@ -9,7 +9,16 @@
 #include <initializer_list>
 namespace gMath
 {
-
+    
+    /**
+     * @brief Clamp a value between a minimum and maximum value.
+     * 
+     * @param value The value to clamp.
+     * @param min The minimum value.
+     * @param max The maximum value.
+     * @return The clamped value.
+     */
+    inline double clamp(double value, double min, double max);
     using axisV = unsigned int;
     class Angle;
     // 二维向量
@@ -17,10 +26,13 @@ namespace gMath
     {
     public:
         double x, y;
+        tVector() : x(0), y(0) {}
         tVector(double a, double b) : x(a), y(b) {}
         tVector(axisV a, axisV b) : x(a), y(b) {}
         tVector(const tVector &r) : x(r.x), y(r.y) {}
         tVector(double len, const tVector &direction) : tVector(direction * (len / direction.sLen())) {}
+        tVector(tVector&& r) = default;
+        tVector& operator=(tVector &&r) = default;
         /**
          * Calculates the dot product of the current vector and the given vector.
          *
@@ -56,12 +68,12 @@ namespace gMath
             x /= r;
             y /= r;
         }
-        tVector &&unify() const
+        tVector getUnifiedV() const
         {
             double r = std::sqrt(sLen());
             return tVector(x / r, y / r);
         }
-        tVector operator=(const tVector &r)
+        tVector& operator=(const tVector &r)
         {
             x = r.x, y = r.y;
             return *this;
@@ -94,17 +106,35 @@ namespace gMath
             x = tx * cosA - ty * sinA;
             y = tx * sinA + ty * cosA;
         }
-        tVector &&reverse()
+        tVector reverse() const
         {
             return tVector(-x, -y);
         }
-        tVector &&operator*(double a) const
+        tVector operator*(double a) const
         {
             return tVector(x * a, y * a);
         }
+        //产生的是3维的赝向量
+        //用有正负的数表示方向
         double cross(const tVector &r) const{
             return x * r.y - y * r.x;
         }
+        //和3维的赝向量叉乘
+        tVector cross(const double &r) const{
+            return tVector(y * r, -x * r);
+        }
+        tVector& operator*=(double a){
+            x *= a;
+            y *= a;
+            return *this;
+        }
+        tVector keepDirectionWith(const tVector &r) const{
+            if (dot(r) >= 0 ){
+                return *this;
+            }
+            return this->reverse();
+        }
+        
     };
     // 坐标类
     class Crdinate
@@ -115,7 +145,8 @@ namespace gMath
 
     public:
         Crdinate(axisV x_, axisV y_) : x(x_), y(y_) {}
-
+        Crdinate(const Crdinate &crd) : x(crd.x), y(crd.y) {}
+        Crdinate(Crdinate &&v) = default;
         void set_x(axisV x_)
         {
             this->x = x_;
@@ -132,19 +163,23 @@ namespace gMath
         {
             return y;
         }
-        Crdinate operator=(const Crdinate &crd)
+        Crdinate& operator=(const Crdinate &crd)
         {
             x = crd.x;
             y = crd.y;
             return *this;
         }
-        tVector operator+(const tVector &v) const
+        Crdinate& operator=(Crdinate &&v) = default;
+        Crdinate operator+(const tVector &v) const
         {
-            return tVector(x + v.x, y + v.y);
+            return Crdinate(x + (axisV)v.x, y + (axisV)v.y);
         }
         tVector operator-(const Crdinate &r) const
         {
             return tVector(x - r.x, y - r.y);
+        }
+        Crdinate operator-(const tVector &v) const{
+            return Crdinate(x - (axisV)v.x, y - (axisV)v.y);
         }
         Crdinate &operator+=(const tVector &v)
         {
@@ -221,6 +256,7 @@ namespace gMath
         Angle &operator+=(const Angle &other)
         {
             degrees += other.degrees;
+            resetRadians();
             return *this;
         }
         bool operator!=(const Angle &r) const
@@ -231,7 +267,15 @@ namespace gMath
         {
             return degrees;
         }
-
+        Angle &operator *=(double a){
+            degrees *= a;
+            radians *= a;
+            return *this;
+        }
+        Angle &operator=(Angle&& r) = default;
+        Angle &operator=(const Angle& r) = default;
+        Angle(Angle&& r) = default;
+        Angle(const Angle& r) = default;
     private:
         double degrees;
         double radians;
@@ -256,9 +300,12 @@ namespace gMath
         {
             return radians * 180.0 / M_PI;
         }
+        void resetRadians(){
+            radians = degreesToRadians(degrees);
+        }
     };
     // 无向图
-    // gpt-generated
+    // bascially gpt-generated
     template <typename T>
     class Graph
     {
@@ -347,7 +394,9 @@ namespace gMath
             }
             return false;
         }
-
+        std::unordered_set<T>& operator[](const T& key){
+            return adjacencyList[key];
+        }
     private:
         std::unordered_map<T, std::unordered_set<T>> adjacencyList;
     };
@@ -366,4 +415,9 @@ struct std::hash<gMath::tVector>
     }
 };
 
+
+double gMath::clamp(double value, double min, double max)
+{
+    return std::max(min, std::min(max, value));
+}
 #endif
