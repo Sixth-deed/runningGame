@@ -2,6 +2,8 @@
 #define EXTENDED_PHYSICS_OBJ
 
 #include "BaseObj.h"
+#include "Gmath.h"
+#include "PhysicsEngine.h"
 /**
  * @brief The MovePhysicsObj class represents a physics object that can be moved.
  *
@@ -89,7 +91,6 @@ double caculateInertia(double mass_, std::vector<gMath::tVector>* shape);
 class MovePhysicsObj : virtual public PhysicsObj, virtual public MoveObj
 {
 protected:
-    double inverseMass;
     
     /**
      * Default constructor for the MovePhysicsObj class.
@@ -100,9 +101,7 @@ protected:
      *
      * @return None
      */
-    MovePhysicsObj() : PhysicsObj(), MoveObj() {
-        inverseMass = 1.0 / mass;
-    }
+    MovePhysicsObj() : PhysicsObj(), MoveObj() {}
     
 public:
     template <typename managerT>
@@ -147,9 +146,12 @@ public:
     inline void applyImpulseOnCenter(const gMath::tVector &impulse) override;
     inline void applyForceAtPoint( const gMath::tVector &force, const gMath::Crdinate &point) override;
     inline void applyImpulseAtPoint(const gMath::tVector &impulse,const gMath::Crdinate &point) override;
+    inline void applyImpulse_v(const gMath::tVector &impulse, const gMath::tVector &r) override;
     static const bool movable = true;
     static const bool rotable = false;
     static const bool isEntity = true;
+    inline void act() override;
+    inline void Integrate(double dt) override;
 };
 
 
@@ -170,26 +172,52 @@ inline void MovePhysicsObj::initObj(MovePhysicsObj *pt, const gMath::Crdinate &c
 {
     PhysicsObj::initObj(pt, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
     MoveObj::initObj(pt, crd, angle_, initialVelocity, initialAccelr);
-    pt->inverseMass = 1 / mass_;
 }
 
 inline void MovePhysicsObj::applyForceOnCenter(const gMath::tVector &force)
 {
     acceleration += force * inverseMass;
+    sleeping = false;
 }
 inline void MovePhysicsObj::applyImpulseOnCenter(const gMath::tVector &impulse)
 {
     velocity += impulse * inverseMass;
+    sleeping = false;
 }
 
 inline void MovePhysicsObj::applyForceAtPoint(const gMath::tVector &force, const gMath::Crdinate &point)
 {
     acceleration += force * inverseMass;
+    sleeping = false;
 }
 
 inline void MovePhysicsObj::applyImpulseAtPoint(const gMath::tVector &impulse,const gMath::Crdinate &point)
 {
     velocity += impulse * inverseMass;
+    sleeping = false;
+}
+
+inline void MovePhysicsObj::applyImpulse_v(const gMath::tVector &impulse, const gMath::tVector &r)
+{
+    velocity += impulse * inverseMass;
+    sleeping = false;
+}
+
+inline void MovePhysicsObj::act()
+{
+    if (gravityAffected){
+        acceleration = mainPhysicsEngine->GLOBAL_GRAVITY;
+    }
+    velocity += acceleration;
+    if (dragAffected){
+        velocity *= 1/(1+ mainPhysicsEngine -> GLOBAL_LINEAR_DAMPING);
+    }
+    mainPhysicsEngine -> getCstManager() ->addObjToIntegrateList(this);
+}
+
+inline void MovePhysicsObj::Integrate(double dt)
+{
+    crd += velocity * dt;
 }
 
 class StablePhysicsObj: virtual public PhysicsObj
@@ -214,6 +242,8 @@ public:
     void applyImpulseOnCenter(const gMath::tVector &impulse) override{}
     void applyForceAtPoint(const gMath::tVector &force, const gMath::Crdinate &point) override{}
     void applyImpulseAtPoint(const gMath::tVector &impulse,const gMath::Crdinate &point) override{}
+    void applyImpulse_v(const gMath::tVector &impulse, const gMath::tVector &r) override{}
+    void Integrate(double dt) override{}
     /// Indicates whether the object can be moved.
     static const bool movable = false;
 
@@ -231,13 +261,13 @@ public:
     }
     template <typename managerT>
     static StablePhysicsObj& newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl, 
-    double mass_ =1.0, double friction_C_ = 0.0, double restitution_C_ =1.0, bool graviityAffected_ =false, bool dragAffected_ = false){
+    double mass_ =0.0, double friction_C_ = 0.0, double restitution_C_ =1.0, bool graviityAffected_ =false, bool dragAffected_ = false){
         StablePhysicsObj &t = m.template acquire<StablePhysicsObj>();
         initObj(&t, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
         return t;
     }
     static void initObj(StablePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl,
-    double mass_ =1.0, double friction_C_ = 0.0, double restitution_C_ =1.0, bool graviityAffected_ =false, bool dragAffected_ = false){
+    double mass_ =0.0, double friction_C_ = 0.0, double restitution_C_ =1.0, bool graviityAffected_ =false, bool dragAffected_ = false){
         PhysicsObj::initObj(pt, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
     }
 };
@@ -298,7 +328,19 @@ public:
     inline void applyImpulseOnCenter(const gMath::tVector &impulse) override{}
     inline void applyForceAtPoint(const gMath::tVector &force, const gMath::Crdinate &point) override;
     inline void applyImpulseAtPoint(const gMath::tVector &impulse, const gMath::Crdinate &point) override;
-    
+    inline void applyImpulse_v(const gMath::tVector &impulse, const gMath::tVector &r) override;
+    double getInverseInertia() const { return inverseInertia; }
+    double getInertia() const { return Inertia; }
+    inline void act() override {
+        angleVelocity += angleAcceleration;
+        if (dragAffected){
+            angleVelocity *= 1 / (1 + mainPhysicsEngine->GLOBAL_ANGULAR_DAMPING);
+        }
+        mainPhysicsEngine->getCstManager()->addObjToIntegrateList(this);
+    }
+    void Integrate(double dt) override{
+        angle += angleVelocity*dt;
+    }
 };
 
 
@@ -313,8 +355,15 @@ public:
      * It calls the act() method of the MovePhysicsObj and RotatePhysicsObj classes.
      */
     inline void act() override {
-        MovePhysicsObj::act();
-        RotatePhysicsObj::act();
+        velocity += acceleration;
+        if (gravityAffected){
+            velocity += mainPhysicsEngine->GLOBAL_GRAVITY;
+        }
+        if (dragAffected){
+            velocity *= 1/(1+ mainPhysicsEngine -> GLOBAL_LINEAR_DAMPING);
+            angleVelocity *= 1/(1+ mainPhysicsEngine -> GLOBAL_ANGULAR_DAMPING);
+        }
+        mainPhysicsEngine ->getCstManager()->addObjToIntegrateList(this);
     }
     /// Indicates whether the object can be moved.
     static const bool movable = true;
@@ -369,6 +418,10 @@ public:
         MovePhysicsObj::applyImpulseAtPoint(impulse,point);
         RotatePhysicsObj::applyImpulseAtPoint(impulse,point);
     }
+    inline void applyImpulse_v(const gMath::tVector &impulse, const gMath::tVector &r) override {
+        MovePhysicsObj::applyImpulse_v(impulse,r);
+        RotatePhysicsObj::applyImpulse_v(impulse,r);
+    }
     template <typename managerT>
     static LiberalPhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_ = 0.0)
     {
@@ -379,7 +432,7 @@ public:
     static LiberalPhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl, 
     double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, 
     const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0, double inertia_ = 1.0,
-    const gMath::tVector &initialVelocity, const gMath::tVector &initialAccelr
+    const gMath::tVector &initialVelocity = gMath::tVector(0.0 , 0.0), const gMath::tVector &initialAccelr = gMath::tVector(0.0 , 0.0)
     )
     {
         LiberalPhysicsObj &t = m.template acquire<LiberalPhysicsObj>();
@@ -397,7 +450,7 @@ public:
     static LiberalPhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl, 
     double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, 
     const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0, 
-    const gMath::tVector &initialVelocity, const gMath::tVector &initialAccelr
+    const gMath::tVector &initialVelocity = gMath::tVector (0.0, 0.0), const gMath::tVector &initialAccelr = gMath::tVector (0.0, 0.0)
     )
     {
         return newObj(m, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, caculateInertia(mass_, cl.getShape()), initialVelocity, initialAccelr);
@@ -408,6 +461,7 @@ public:
     const gMath::tVector &initialVelocity = gMath::tVector(0.0, 0.0), const gMath::tVector &initialAccelr = gMath::tVector(0.0, 0.0)){  
         initObj(t, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, caculateInertia(mass_, cl.getShape()),initialVelocity, initialAccelr);
     }
+    inline void Integrate(double dt);
 };
 
 
@@ -460,4 +514,17 @@ inline void RotatePhysicsObj::applyImpulseAtPoint(const gMath::tVector &impulse,
     angleVelocity += angularMomentum * inverseInertia;
 }
 
+inline void RotatePhysicsObj::applyImpulse_v(const gMath::tVector &impulse, const gMath::tVector &r)
+{
+    double angularMomentum = impulse.cross(r);
+    // Increase the angular Velocity
+    angleVelocity += angularMomentum * inverseInertia;
+}
+
+
+inline void LiberalPhysicsObj::Integrate(double dt)
+{
+    MovePhysicsObj::Integrate(dt);
+    RotatePhysicsObj::Integrate(dt);
+}
 #endif

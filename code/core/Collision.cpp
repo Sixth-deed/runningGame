@@ -2,28 +2,57 @@
 #include <cfloat>
 #include <cmath>
 #include <unordered_set>
+#include <utility>
 #include <execution>
+
 using namespace clsn;
 CollisionBox::Projection CollisionBox::projectTo(const tVector &axis) const
 {
     switch (vectors.size())
     {
     case 1:
-        return {-radius(), radius()};
+        const tVector r = axis * radius();
+        return Projection(-radius(), r.reverse(), radius(), std::move(r));
     case 2:
         double t = vectors[0].dot(axis);
+        const tVector v = axis * t;
         if (t > 0.0)
-            return {-t, t};
-        return {t, -t};
+            return Projection(-t, v.reverse(), t, std::move(v));
+        return Projection(t, std::move(v), -t, v.reverse());
     default:
-        double max, min = max = vectors[0].dot(axis);
-        for (int i = 1; i < vectors.size(); i++)
+        // 考虑到是顺时针遍历顶点可以稍作优化
+        double max = vectors[0].dot(axis), min;
+        int i = 1;
+        tVector *minpt, *maxpt;
+        for (; i < vectors.size(); i++)
         {
             double projection_i = vectors[i].dot(axis);
-            min = std::min(min, projection_i);
-            max = std::max(max, projection_i);
+            if (projection_i > max)
+            {
+                max = projection_i;
+            }
+            else
+            {
+                maxpt = &vectors[i - 1];
+                min = projection_i;
+                break;
+            }
         }
-        return {min, max};
+        for (; i < vectors.size(); i++)
+        {
+            double projection_i = vectors[i].dot(axis);
+            if (projection_i < min)
+            {
+                min = projection_i;
+            }
+            else
+            {
+                minpt = &vectors[i - 1];
+                break;
+            }
+        }
+
+        return Projection(min, tVector(*minpt), max, tVector(*maxpt));
     }
 }
 
@@ -52,12 +81,12 @@ void clsn::CollisionBox::RotateTo(const Angle &angle)
     }
 }
 
-
-tVector clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2)
+mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2)
 {
     // 由对象1的中心点指向对象2的中心点的向量
     tVector offset12 = crd2 - crd1;
-    auto consolveLineAndCircle = [](const tVector &offset, const CollisionBox &Line, const CollisionBox &Circle) -> tVector
+    auto consolveLineAndCircle = [](const tVector &offset, const CollisionBox &Line, const CollisionBox &Circle, bool reversed)
+        -> mOptional<CollisionLocal>
     {
         // 不考虑线段两头撞上圆的情形，本身线段只是作辅助的补充碰撞箱
         std::vector<tVector> ns;
@@ -70,44 +99,96 @@ tVector clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const A
             p2.addOffset(offset.dot(axis));
             if (p1.high < p2.low || p2.high < p1.low)
             {
-                return tVector(0.0, 0.0);
+                return mOptional<CollisionLocal>();
             }
         }
-        double len = Circle.radius() - std::abs(Line.ns->at(0).dot(offset));
-        return tVector(len, Line.ns->at(0));
+        // 指向圆心的向量
+        const tVector &n12 = Line.ns->at(0).keepDirectionWith(offset);
+
+        double len = Circle.radius() - std::abs(n12.dot(offset));
+
+        const tVector minDvector(len, n12);
+        const tVector v2 = (n12 * Circle.radius()).reverse();
+        const tVector t = n12.cross(1.0);
+        if (reversed)
+            return mOptional<CollisionLocal>(CollisionLocal(v2, offset + v2 + minDvector, n12.reverse(), t.reverse()));
+        return mOptional<CollisionLocal>(CollisionLocal(offset + v2 + minDvector, v2, n12, t));
     };
-    auto consolveLineAndPolygon = [](const tVector &offset, const CollisionBox &Line, const CollisionBox &Polygon) -> tVector
+    auto consolveLineAndPolygon = [](const tVector &offset, const CollisionBox &Line, const CollisionBox &Polygon, const bool reversed)
+        -> mOptional<CollisionLocal>
     {
         // 不考虑线段两头撞上多边形的情形，本身线段只是作辅助的补充碰撞箱
-        //  进行SAT检测
-        for (const auto &axis : *(Polygon.ns))
+        const tVector n = Line.ns->at(0).keepDirectionWith(offset);
+
+        CollisionBox::Projection p = Polygon.projectTo(n);
+
+        p.addOffset(offset.reverse().dot(n));
+        if (p.high < 0 || p.low > 0)
         {
-            auto p1 = Line.projectTo(axis);
-            auto p2 = Polygon.projectTo(axis);
-            p2.addOffset(offset.dot(axis));
-            if (p1.high < p2.low || p2.high < p1.low)
+            return mOptional<CollisionLocal>();
+        }
+        // 确认在线段上相交
+        // 通过确认直线与多边形的交点，判断是否在线段上相交
+        const tVector t = n.normal().keepDirectionWith(offset);
+        // 由于是顺时针遍历，只需要找到第一个从与法向量点乘为负值到与法向量点乘为正值的变化的点
+        // 这里是有限状态机
+        bool flag = false;
+        const double lambda = -offset.dot(n);
+        for (int i = 0; i < Polygon.vectors.size(); i++)
+        {
+            if (Polygon.vectors[i].dot(n) <= lambda)
             {
-                return tVector(0.0, 0.0);
+                flag = true;
+                continue;
+            }
+            else if (flag)
+            {
+                const double x1 = Polygon.vectors[i - 1].x;
+                const double x2 = Polygon.vectors[i].x;
+                const double y1 = Polygon.vectors[i - 1].y;
+                const double y2 = Polygon.vectors[i].y;
+                if ((lambda * (x1 - x2) + x2 * y1 - x1 * y2) / (y1 - y2) + offset.dot(t) - Line.vectors[0].magnitude() > 0)
+                {
+                    return mOptional<CollisionLocal>();
+                }
+                else
+                {
+                    break;
+                }
             }
         }
-        auto project = Polygon.projectTo(Line.ns->at(0));
-        double len = std::min(std::abs(project.low), project.high);
-        return tVector(len, Line.ns->at(0));
+        if (reversed)
+            return mOptional<CollisionLocal>(CollisionLocal(p.toLowPoint, offset + p.toLowPoint + n * p.low, n.reverse(), t.reverse()));
+        return mOptional<CollisionLocal>(CollisionLocal(offset + p.toLowPoint + n * p.low, p.toLowPoint, n, t));
     };
 
-    auto consolveCircleAndPolygon = [](const tVector &offset, const CollisionBox &Circle, const CollisionBox &Polygon) -> tVector
+    auto consolveCircleAndPolygon = [](const tVector &offset, const CollisionBox &Circle, const CollisionBox &Polygon, const bool reversed)
+        -> mOptional<CollisionLocal>
     {
         // 进行SAT检测
         // 记录最小位移向量
-        tVector tAxis = offset.unify(), minV = tAxis;
+        const tVector tAxis = offset.getUnifiedV(), *minV = &tAxis;
         auto p1 = Circle.projectTo(tAxis);
         auto p2 = Polygon.projectTo(tAxis);
         p2.addOffset(offset.dot(tAxis));
         if (p1.high < p2.low || p2.high < p1.low)
         {
-            return tVector(0.0, 0.0);
+            return mOptional<CollisionLocal>();
         }
-        double mMin = (p2.high > p1.high ? p1.high - p2.low : p2.high - p1.low);
+        double mMin;
+        const tVector *v1, *v2;
+        if (p2.high > p1.high)
+        {
+            mMin = p1.high - p2.low;
+            v1 = &p1.toHighPoint;
+            v2 = &p2.toLowPoint;
+        }
+        else
+        {
+            mMin = p2.high - p1.low;
+            v1 = &p2.toHighPoint;
+            v2 = &p1.toLowPoint;
+        }
 
         for (const auto &axis : *(Polygon.ns))
         {
@@ -116,38 +197,62 @@ tVector clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const A
             p2.addOffset(offset.dot(axis));
             if (p1.high < p2.low || p2.high < p1.low)
             {
-                return tVector(0.0, 0.0);
+                return mOptional<CollisionLocal>();
             }
-            double temp = (p2.high > p1.high ? p1.high - p2.low : p2.high - p1.low);
-            if (mMin > temp)
+            if (p2.high > p1.high)
             {
-                mMin = temp;
-                minV = axis;
+                const double temp = p1.high - p2.low;
+                if (mMin > temp)
+                {
+                    v1 = &p1.toHighPoint;
+                    v2 = &p2.toLowPoint;
+                    mMin = temp;
+                    minV = &axis;
+                }
+            }
+            else
+            {
+                const double temp = p2.high - p1.low;
+                if (mMin > temp)
+                {
+                    v1 = &p2.toHighPoint;
+                    v2 = &p1.toLowPoint;
+                    mMin = temp;
+                    minV = &axis;
+                }
             }
         }
-        return minV;
+        const tVector normal = minV->getUnifiedV();
+        const tVector t = normal.normal().keepDirectionWith(offset);
+        if (reversed)
+            return mOptional<CollisionLocal>(CollisionLocal(*v2, *v1, normal.reverse(), t.reverse()));
+        return mOptional<CollisionLocal>(CollisionLocal(*v1, *v2, normal, t));
     };
-    auto consolveLines = [](const tVector &offset, const CollisionBox &vecA, const CollisionBox &vecB) -> tVector
+    auto consolveLines = [](const tVector &offset, const CollisionBox &vecA, const CollisionBox &vecB)
+        -> mOptional<CollisionLocal>
     {
         // 这里只检测是否相撞，不反回有效的最小分离量
-        tVector axis = offset.unify();
+        tVector axis = offset.getUnifiedV();
         auto p1 = vecA.projectTo(axis);
         auto p2 = vecB.projectTo(axis);
         p2.addOffset(offset.dot(axis));
         if (p1.high < p2.low || p2.high < p1.low)
         {
-            return tVector(0.0, 0.0);
+            return mOptional<CollisionLocal>();
         }
-        return tVector(1.0, 0.0);
+        return mOptional<CollisionLocal>(true);
     };
-    auto consolveCircles = [](const tVector &offset, const CollisionBox &Ca, const CollisionBox &Cb) -> tVector
+    auto consolveCircles = [](const tVector &offset, const CollisionBox &Ca, const CollisionBox &Cb)
+        -> mOptional<CollisionLocal>
     {
         double len = sqrt(offset.sLen());
         if (Ca.radius() + Cb.radius() > len)
         {
-            return tVector(0.0, 0.0);
+            return mOptional<CollisionLocal>();
         }
-        return tVector(len - Ca.radius() - Cb.radius(), offset);
+        const tVector normal = offset.getUnifiedV();
+        const tVector t = normal.normal().keepDirectionWith(offset);
+        return mOptional<CollisionLocal>(CollisionLocal(normal * Ca.radius(), (normal * Cb.radius()).reverse(), normal, t));
     };
 
     // 上面为局部函数声明
@@ -165,33 +270,33 @@ tVector clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const A
     {
         if (b2.vectors.size() == 1)
 
-            consolveCircles(offset12, b1, b2);
+            return consolveCircles(offset12, b1, b2);
 
         if (b2.vectors.size() == 2)
 
-            consolveLineAndCircle(offset12.reverse(), b2, b1);
+            return consolveLineAndCircle(offset12.reverse(), b2, b1, true);
 
         else
-            consolveCircleAndPolygon(offset12, b1, b2);
+            return consolveCircleAndPolygon(offset12, b1, b2, false);
     }
     else if (b1.vectors.size() == 2)
     {
         if (b2.vectors.size() == 1)
-            consolveLineAndCircle(offset12, b1, b2);
+            return consolveLineAndCircle(offset12, b1, b2, false);
         if (b2.vectors.size() == 2)
-            consolveLines(offset12, b1, b2);
+            return consolveLines(offset12, b1, b2);
         else
-            consolveLineAndPolygon(offset12, b1, b2);
+            return consolveLineAndPolygon(offset12, b1, b2, false);
     }
     else
     {
         if (b2.vectors.size() == 1)
 
-            return consolveCircleAndPolygon(offset12.reverse(), b2, b1);
+            return consolveCircleAndPolygon(offset12.reverse(), b2, b1, true);
 
         if (b2.vectors.size() == 2)
 
-            return consolveLineAndPolygon(offset12.reverse(), b2, b1);
+            return consolveLineAndPolygon(offset12.reverse(), b2, b1, true);
 
         // 多边形与多边形
         else
@@ -199,7 +304,7 @@ tVector clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const A
 
             // 进行SAT检测
             // 记录最小位移向量
-            tVector minV(0.0, 0.0);
+            const tVector *v1, *v2, *minV;
             double mMin = DBL_MAX;
             for (const auto &axis : *(b1.ns))
             {
@@ -208,13 +313,29 @@ tVector clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const A
                 p2.addOffset(offset12.dot(axis));
                 if (p1.high < p2.low || p2.high < p1.low)
                 {
-                    return tVector(0.0, 0.0);
+                    return mOptional<CollisionLocal>();
                 }
-                double temp = (p2.high > p1.high ? p1.high - p2.low : p2.high - p1.low);
-                if (mMin > temp)
+                if (p2.high > p1.high)
                 {
-                    mMin = temp;
-                    minV = axis;
+                    const double temp = p1.high - p2.low;
+                    if (mMin > temp)
+                    {
+                        v1 = &p1.toHighPoint;
+                        v2 = &p2.toLowPoint;
+                        mMin = temp;
+                        minV = &axis;
+                    }
+                }
+                else
+                {
+                    const double temp = p2.high - p1.low;
+                    if (mMin > temp)
+                    {
+                        v1 = &p2.toHighPoint;
+                        v2 = &p1.toLowPoint;
+                        mMin = temp;
+                        minV = &axis;
+                    }
                 }
             }
             for (const auto &axis : *(b2.ns))
@@ -224,16 +345,32 @@ tVector clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const A
                 p2.addOffset(offset12.dot(axis));
                 if (p1.high < p2.low || p2.high < p1.low)
                 {
-                    return tVector(0.0, 0.0);
+                    return mOptional<CollisionLocal>();
                 }
-                double temp = (p2.high > p1.high ? p1.high - p2.low : p2.high - p1.low);
-                if (mMin > temp)
+                if (p2.high > p1.high)
                 {
-                    mMin = temp;
-                    minV = axis;
+                    const double temp = p1.high - p2.low;
+                    if (mMin > temp)
+                    {
+                        v1 = &p1.toHighPoint;
+                        v2 = &p2.toLowPoint;
+                        mMin = temp;
+                        minV = &axis;
+                    }
+                }
+                else
+                {
+                    const double temp = p2.high - p1.low;
+                    if (mMin > temp)
+                    {
+                        v1 = &p2.toHighPoint;
+                        v2 = &p1.toLowPoint;
+                        mMin = temp;
+                        minV = &axis;
+                    }
                 }
             }
-            return minV;
+            return mOptional<CollisionLocal>(CollisionLocal(*v1, *v2, *minV, *minV));
         }
     }
 }

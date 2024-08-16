@@ -47,7 +47,7 @@ private:
     static GridManager<gObjType> *mManager;
 
     // 持有的对象数字达到这个数就分割
-    static const unsigned int threshold = 50;
+    static const unsigned int threshold;
     // 分割用的函数
     void divideSelf();
     // 合并用函数
@@ -98,8 +98,8 @@ public:
     // 从根创建新的Grid
     // l,r,t,b分别为左右上下四个边界的坐标值
     static Grid<gObjType> *newGrid(gMath::axisV l, gMath::axisV r, gMath::axisV t, gMath::axisV b, Grid<gObjType> *parentGrid);
-
-    void forEachInGrid(void (*f)(gObjType*)){
+    template <typename FuncType>
+    void forEachInGrid(FuncType f){
         std::for_each(mManager->getGridReferences(gridID).begin(),mManager->getGridReferences(gridID).end(),f);
     }
     bool is_divided(){

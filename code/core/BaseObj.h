@@ -3,6 +3,7 @@
 #include "Gmath.h"
 #include "gObj.h"
 #include "idHandler.h"
+#include "Constants.h"
 #include <csignal>
 #include <cstdlib>
 #include <memory>
@@ -149,11 +150,8 @@ public:
      */
     friend inline constexpr CollisionType whatCollide(const EntityObj &b1, const EntityObj &b2);
 };
-// 检测两个实体对象有没有发生碰撞
-inline gMath::tVector isReallyIntersects(EntityObj &b1, EntityObj &b2)
-{
-    return clsn::isReallyIntersects(b1.getCrd(), b1.getCollisionBox(), b1.getAngle(), b2.getCrd(), b2.getCollisionBox(), b1.getAngle());
-}
+
+
 inline bool isOuterIntersects(const EntityObj &b1, const EntityObj &b2)
 {
     return clsn::isOuterIntersect(b1.getCrd(), b1.get_c_CollisionBox(), b2.getCrd(), b2.get_c_CollisionBox());
@@ -162,6 +160,7 @@ inline constexpr CollisionType whatCollide(const EntityObj &b1, const EntityObj 
 {
     return WillCollide[static_cast<int>(b1.etype)][static_cast<int>(b2.etype)];
 }
+
 class ActObj : virtual public gObj
 {
 public:
@@ -174,6 +173,7 @@ public:
     static void newObj(managerT &m, const gMath::Crdinate &crd, const gMath::Angle &angle_){
         return basicObjInit<ActObj>(m, crd, angle_);
     }
+    bool isSleeping = true;
 };
 
 class DynamicActObj : virtual public ActObj
@@ -242,7 +242,7 @@ protected:
     tVector velocity;
 
     tVector acceleration;
-
+    
     MoveObj() : ActObj(), velocity(0.0, 0.0), acceleration(0.0, 0.0) {}
 
     // 为0时直接删除对象
@@ -254,7 +254,7 @@ protected:
     // 自定义的处理离开视野的方法
     // return 0表示删除对象，return 1会保留对象
     int s_onOffTackler() { return 0; }
-
+    bool moved = false;
 public:
     template <typename managerT>
     static MoveObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_ = 0.0)
@@ -308,8 +308,16 @@ public:
     }
     void act() override
     {
-        velocity += acceleration;
-        crd += velocity;
+        if (!isSleeping){
+            velocity += acceleration;
+            crd += velocity;
+            moved = velocity.magnitude() >= MIN_VELOCITY_COUNT;
+        }
+        else
+            moved = false;
+    }
+    bool isMoved() const{
+        return moved;
     }
     static const bool movable = true;
 };
@@ -349,6 +357,23 @@ public:
         pt->angleAcceleration = angleA;
     }
     static const bool rotatable = true;
+
+    gMath::Angle getAngleVelocity() const
+    {
+        return angleVelocity;
+    }
+    void setAngleVelocity(const gMath::Angle &a)
+    {
+        angleVelocity = a;
+    }
+    gMath::Angle getAngleAcceleration() const
+    {
+        return angleAcceleration;
+    }
+    void setAngleAcceleration(const gMath::Angle &a)
+    {
+        angleAcceleration = a;
+    }
 };
 
 class ActivateObj : virtual public gObj
@@ -381,22 +406,9 @@ public:
         pt->activeRectangle = &rect;
     }
 };
-
+class PhysicsConstants;
 class PhysicsObj : virtual public EntityObj
 {
-protected:
-    // 质量
-    double mass;
-    // 摩擦系数
-    double friction_C;
-    // 恢复系数
-    double restitution_C;
-    // 是否受全局重力影响
-    bool gravityAffected;
-    // 是否受阻力影响（不是摩擦力）
-    bool dragAffected;
-    PhysicsObj() : EntityObj() {}
-
 public:
     template <typename managerT>
     static PhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd = gMath::Crdinate(0, 0), const gMath::Angle &angle_ = 0.0)
@@ -409,17 +421,19 @@ public:
     {
         PhysicsObj &t = basicObjInit<PhysicsObj>(m, crd, angle_);
         t.clsnBox = &cl;
-        mass = mass_;
-        friction_C = friction_C_;
-        restitution_C = restitution_C_;
-        gravityAffected = graviityAffected_;
-        dragAffected = dragAffected_;
+        t.mass = mass_;
+        pt->inverseMass = mass_ ==0 ? 0: 1 / mass_;
+        t.friction_C = friction_C_;
+        t.restitution_C = restitution_C_;
+        t.gravityAffected = graviityAffected_;
+        t.dragAffected = dragAffected_;
         return t;
     }
     static void initObj(PhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl,
                         double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0, bool graviityAffected_ = true, bool dragAffected_ = true){
                             EntityObj::initObj(pt, crd, angle_, cl);
                             pt->mass = mass_;
+                            pt->inverseMass = mass_ ==0 ? 0: 1 / mass_;
                             pt->friction_C = friction_C_;
                             pt->restitution_C = restitution_C_;
                             pt->gravityAffected = graviityAffected_;
@@ -431,5 +445,46 @@ public:
     virtual void applyImpulseOnCenter(const gMath::tVector &impulse) = 0;
     virtual void applyForceAtPoint(const gMath::tVector &force, const gMath::Crdinate &point) = 0;
     virtual void applyImpulseAtPoint(const gMath::tVector &impulse, const gMath::Crdinate &point) = 0;
-};
+    virtual void applyImpulse_v(const gMath::tVector &impulse, const gMath::tVector& r) = 0;
+    virtual void Integrate(double dt) = 0;
+
+    double getMass() const{
+        return mass;
+    }
+    double getInverseMass() const{
+        return inverseMass;
+    }
+    double getFriction() const{
+        return friction_C;
+    }
+    double getRestitution() const{
+        return restitution_C;
+    }
+    bool isGravityAffected() const{
+        return gravityAffected;
+    }
+    bool isDragAffected() const{
+        return dragAffected;
+    }
+    protected:
+    // 质量
+    double mass;
+    //质量倒数
+    double inverseMass;
+    // 摩擦系数
+    double friction_C;
+    // 恢复系数
+    double restitution_C;
+    // 是否受全局重力影响
+    bool gravityAffected;
+    // 是否受阻尼影响（不是摩擦力）
+    bool dragAffected;
+
+    static PhysicsConstants* mainPhysicsEngine;
+
+    PhysicsObj() : EntityObj() {}
+    static void setPhysicsEngine(PhysicsConstants* p){
+        mainPhysicsEngine = p;
+    }
+};  
 #endif
