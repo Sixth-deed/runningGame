@@ -2,7 +2,7 @@
 #define EXTENDED_PHYSICS_OBJ
 
 #include "BaseObj.h"
-#include "Gmath.h"
+#include "lib/Gmath.h"
 #include "PhysicsEngine.h"
 /**
  * @brief The MovePhysicsObj class represents a physics object that can be moved.
@@ -152,6 +152,8 @@ public:
     static const bool isEntity = true;
     inline void act() override;
     inline void Integrate(double dt) override;
+    void moveFix(const gMath::tVector &&fix) override;
+    void rotateFix(const gMath::Angle &&anglefix) override{}
 };
 
 
@@ -177,30 +179,30 @@ inline void MovePhysicsObj::initObj(MovePhysicsObj *pt, const gMath::Crdinate &c
 inline void MovePhysicsObj::applyForceOnCenter(const gMath::tVector &force)
 {
     acceleration += force * inverseMass;
-    sleeping = false;
+    isSleeping = false;
 }
 inline void MovePhysicsObj::applyImpulseOnCenter(const gMath::tVector &impulse)
 {
     velocity += impulse * inverseMass;
-    sleeping = false;
+    isSleeping = false;
 }
 
 inline void MovePhysicsObj::applyForceAtPoint(const gMath::tVector &force, const gMath::Crdinate &point)
 {
-    acceleration += force * inverseMass;
-    sleeping = false;
+    this->acceleration += force * inverseMass;
+    isSleeping = false;
 }
 
 inline void MovePhysicsObj::applyImpulseAtPoint(const gMath::tVector &impulse,const gMath::Crdinate &point)
 {
     velocity += impulse * inverseMass;
-    sleeping = false;
+    isSleeping = false;
 }
 
 inline void MovePhysicsObj::applyImpulse_v(const gMath::tVector &impulse, const gMath::tVector &r)
 {
     velocity += impulse * inverseMass;
-    sleeping = false;
+    isSleeping = false;
 }
 
 inline void MovePhysicsObj::act()
@@ -218,6 +220,11 @@ inline void MovePhysicsObj::act()
 inline void MovePhysicsObj::Integrate(double dt)
 {
     crd += velocity * dt;
+}
+
+inline void MovePhysicsObj::moveFix(const gMath::tVector &&fix)
+{
+    crd += fix;
 }
 
 class StablePhysicsObj: virtual public PhysicsObj
@@ -270,6 +277,8 @@ public:
     double mass_ =0.0, double friction_C_ = 0.0, double restitution_C_ =1.0, bool graviityAffected_ =false, bool dragAffected_ = false){
         PhysicsObj::initObj(pt, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
     }
+    void moveFix(const gMath::tVector &&fix) override{}
+    void rotateFix(const gMath::Angle &&anglefix) override{}
 };
 
 
@@ -329,7 +338,7 @@ public:
     inline void applyForceAtPoint(const gMath::tVector &force, const gMath::Crdinate &point) override;
     inline void applyImpulseAtPoint(const gMath::tVector &impulse, const gMath::Crdinate &point) override;
     inline void applyImpulse_v(const gMath::tVector &impulse, const gMath::tVector &r) override;
-    double getInverseInertia() const { return inverseInertia; }
+    double getInverseInertia() const override{ return inverseInertia; }
     double getInertia() const { return Inertia; }
     inline void act() override {
         angleVelocity += angleAcceleration;
@@ -341,6 +350,8 @@ public:
     void Integrate(double dt) override{
         angle += angleVelocity*dt;
     }
+    void moveFix(const gMath::tVector &&fix) override{}
+    void rotateFix(const gMath::Angle &&anglefix) override;
 };
 
 
@@ -462,6 +473,8 @@ public:
         initObj(t, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, caculateInertia(mass_, cl.getShape()),initialVelocity, initialAccelr);
     }
     inline void Integrate(double dt);
+    void moveFix(const gMath::tVector &&fix) override;
+    void rotateFix(const gMath::Angle &&anglefix) override;
 };
 
 
@@ -521,10 +534,22 @@ inline void RotatePhysicsObj::applyImpulse_v(const gMath::tVector &impulse, cons
     angleVelocity += angularMomentum * inverseInertia;
 }
 
+inline void RotatePhysicsObj::rotateFix(const gMath::Angle &&anglefix)
+{
+    angle += anglefix;
+}
 
 inline void LiberalPhysicsObj::Integrate(double dt)
 {
     MovePhysicsObj::Integrate(dt);
     RotatePhysicsObj::Integrate(dt);
+}
+inline void LiberalPhysicsObj::moveFix(const gMath::tVector &&fix)
+{
+    MovePhysicsObj::moveFix(std::move(fix));
+}
+inline void LiberalPhysicsObj::rotateFix(const gMath::Angle &&anglefix)
+{
+    RotatePhysicsObj::rotateFix(std::move(anglefix));
 }
 #endif

@@ -1,8 +1,6 @@
 
-#ifndef GAME_gObjPool_AND_MANAGER
-#define GAME_gObjPool_AND_MANAGER
-#include "macros.h"
-#include "idHandler.h"
+#ifndef GAME_ObjPool_AND_MANAGER
+#define GAME_ObjPool_AND_MANAGER
 #include <vector>
 #include <climits>
 #include <tuple>
@@ -11,10 +9,10 @@
 //对象池，用于管理对象分配和释放
 //gObjType --任意gObj类型
 template <typename gObjType>
-class gObjPool;
+class ObjPool;
 
 /**
- * @class gObjPool
+ * @class ObjPool
  * @brief A template class for managing a pool of game objects.
  * 
  * This class provides a way to manage a pool of game objects, allowing for efficient
@@ -24,14 +22,14 @@ class gObjPool;
  * @tparam gObjType The type of game object to be managed.
  */
 template <typename gObjType>
-class gObjPool{
+class ObjPool{
     private :
         std::vector<gObjType*> pool;
     public :
         //n -- 对象池初始大小
         //调用对应模板的默认构造函数
-        gObjPool(int n) : pool(n,new gObjType()){}
-        gObjPool(): pool(){}
+        ObjPool(int n) : pool(n,new gObjType()){}
+        ObjPool(): pool(){}
         //获取对象
         gObjType& acquire();
         //释放对象
@@ -52,11 +50,11 @@ class gObjPool{
             pool.clear();
         }
 
-        ~gObjPool(){
+        ~ObjPool(){
             clear();
         }
 };
-//用于管理所有类型的游戏对象（继承自gObj）的管理器
+//用于管理所有类型的对象的管理器
 //Types是所有传入的类型模板
 template <typename... Types>
 /**
@@ -67,7 +65,6 @@ template <typename... Types>
  * @tparam Types The types of game objects to be managed.
  */
 class ObjectManager {
-    //gpt generated
     public:
         
         // 构造函数接受一个长度和模板长度相同的数组，用于初始化不同类型的对象池
@@ -97,25 +94,25 @@ class ObjectManager {
         // 创建 ObjectPool 实例的辅助函数
         template <std::size_t... Is>
         auto createPools(std::index_sequence<Is...>, std::size_t initialSizes[sizeof...(Types)]) {
-             return std::tuple<gObjPool<Types>...>(gObjPool<Types>(initialSizes[Is])...);
+             return std::tuple<ObjPool<Types>...>(ObjPool<Types>(initialSizes[Is])...);
         }
         /**
-         * Creates a tuple of gObjPool instances for the given types, 
+         * Creates a tuple of ObjPool instances for the given types, 
          * initializing each pool with the corresponding size from the initialSizes array.
          *
          * @param std::index_sequence<Is...> an index sequence representing the types
          * @param const std::size_t* initialSizes an array of initial sizes for the pools
          *
-         * @return a tuple of gObjPool instances
+         * @return a tuple of ObjPool instances
          */
         template <std::size_t... Is> 
         auto createPools(std::index_sequence<Is...>, const std::size_t* initialSizes) {
-             return std::tuple<gObjPool<Types>...>(gObjPool<Types>(initialSizes[Is])...);
+             return std::tuple<ObjPool<Types>...>(ObjPool<Types>(initialSizes[Is])...);
         }
 
         template <typename gObjType>
-            gObjPool<gObjType>& getPool() {
-                return std::get<gObjPool<gObjType>>(pools);
+            ObjPool<gObjType>& getPool() {
+                return std::get<ObjPool<gObjType>>(pools);
             }
 
         /**
@@ -132,7 +129,7 @@ class ObjectManager {
                 (std::get<Is>(pools).clear(), ...);
             }
 
-        std::tuple<gObjPool<Types>...> pools;
+        std::tuple<ObjPool<Types>...> pools;
 };
 
 

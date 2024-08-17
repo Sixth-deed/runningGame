@@ -1,7 +1,7 @@
-#include "QuadTree.h"
+#include "lib/QuadTree.h"
 #include "BaseObj.h"
-#include "Gmath.h"
-#include "Constants.h"
+#include "lib/Gmath.h"
+#include "lib/Constants.h"
 #include "Constraint.h"
 
 
@@ -16,10 +16,12 @@ const unsigned int Grid<gObj>::threshold = 100;
 
 
 // 约束求解时 速度约束 的迭代次数
-const int PhysicsContactConstraint::vIterations = 2;
+const int VelAndPosSolver::vIterations = 2;
 // 约束求解时 位置约束 的迭代次数
-const int PhysicsContactConstraint::pIterations = 6;
+const int VelAndPosSolver::pIterations = 4;
 
+const double PhysicsContactConstraint::posBiasFactor = 0.5;
+const double PhysicsContactConstraint::maxPenetraintion = 0.1;
 
 
 

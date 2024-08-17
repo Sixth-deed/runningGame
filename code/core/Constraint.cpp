@@ -5,7 +5,6 @@
 #include <cmath>
 void ContactConstraint::update()
 {
-    // 逻辑有问题，择日重写
     switch (cstState)
     {
     case ConstraintState::NewlyAdded:
@@ -16,39 +15,25 @@ void ContactConstraint::update()
         {
         case 0:
             // Error
-            break;
         case 1:
             MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
-            if (!pt1->isMoved())
-                cstState = ConstraintState::Sleep0;
-            if (normal.dot(pt1->getVelocity()) < 0.0)
+            if (!pt1->isSleep() && normal.dot(pt1->getVelocity()) < 0.0)
                 cstState = ConstraintState::Seperating;
-            break;
         case 2:
             MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
-            if (!pt2->isMoved())
-                cstState = ConstraintState::Sleep0;
-            if (normal.dot(pt2->getVelocity()) < 0.0)
+            if (!pt2->isSleep() && normal.dot(pt2->getVelocity()) > 0.0)
                 cstState = ConstraintState::Seperating;
-            break;
         case 3:
             MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
             MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
-            if (pt1->isMoved() && pt2->isMoved() && (normal.dot(pt1->getVelocity() - pt2->getVelocity()) < 0.0))
+            if (!(pt1->isSleep() && pt2->isSleep()) && (normal.dot(pt1->getVelocity() - pt2->getVelocity()) < 0.0))
                 cstState = ConstraintState::Seperating;
-            else if (pt1->isMoved() && (pt1->getVelocity().dot(normal) < 0.0))
-                cstState = ConstraintState::Seperating;
-            else if (pt2->isMoved() && (pt2->getVelocity().dot(normal) < 0.0))
-                cstState = ConstraintState::Seperating;
-            else
-                cstState = ConstraintState::Sleep0;
-            break;
         }
         break;
     case ConstraintState::Seperating:
-        if (!broadPhaseTest())
+        if (!isReallyIntersects(*ett1, *ett2))
         {
-            cstState = ConstraintState::toBeRemoved;
+            release();
         }
         else
         {
@@ -56,120 +41,28 @@ void ContactConstraint::update()
             {
             case 0:
                 // Error
-                break;
             case 1:
                 MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
-                if (!pt1->isMoved())
-                    cstState = ConstraintState::Sleep0;
-                if (normal.dot(pt1->getVelocity()) > 0.0)
+                if (!pt1->isSleep() && normal.dot(pt1->getVelocity()) > 0.0)
                     cstState = ConstraintState::OnGoing;
-                break;
             case 2:
                 MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
-                if (!pt2->isMoved())
-                    cstState = ConstraintState::Sleep0;
-                if (normal.dot(pt2->getVelocity()) > 0.0)
+                if (!pt2->isSleep() && normal.dot(pt2->getVelocity()) < 0.0)
                     cstState = ConstraintState::OnGoing;
-                break;
             case 3:
                 MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
                 MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
-                if (pt1->isMoved() && pt2->isMoved() && (normal.dot(pt1->getVelocity() - pt2->getVelocity()) > 0.0))
+                if (!(pt1->isSleep() && pt2->isSleep()) && (normal.dot(pt1->getVelocity() - pt2->getVelocity()) > 0.0))
                     cstState = ConstraintState::OnGoing;
-                else if (pt1->isMoved() && (pt1->getVelocity().dot(normal) > 0.0))
-                    cstState = ConstraintState::OnGoing;
-                else if (pt2->isMoved() && (pt2->getVelocity().dot(normal) > 0.0))
-                    cstState = ConstraintState::OnGoing;
-                else
-                    cstState = ConstraintState::Sleep0;
-                break;
             }
         }
-        break;
-    case ConstraintState::Sleep0:
-        switch (moveableFlag)
-        {
-        case 0:
-            // Error
-        case 1:
-            MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
-            if (pt1->isMoved())
-                cstState = ConstraintState::OnGoing;
-            else
-            {
-                cstState = ConstraintState::Sleeping;
-                pt1->setSleep();
-            }
-            break;
-        case 2:
-            MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
-            if (pt2->isMoved())
-                cstState = ConstraintState::OnGoing;
-            else
-            {
-                cstState = ConstraintState::Sleeping;
-                pt2->setSleep();
-            }
-            break;
-        case 3:
-
-            MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
-            MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
-            if (pt1->isMoved() || pt2->isMoved())
-                cstState = ConstraintState::OnGoing;
-            else
-            {
-                cstState = ConstraintState::Sleeping;
-                pt1->setSleep();
-                pt2->setSleep();
-            }
-            break;
-        default:
-            // Error
-            break;
-        }
-
-        break;
-    case ConstraintState::Sleeping:
-        switch (moveableFlag)
-        {
-        case 0:
-            // Error
-        case 1:
-            MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
-            if (!pt1->isSleep())
-                cstState = ConstraintState::OnGoing;
-            break;
-        case 2:
-            MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
-            if (!pt2->isSleep())
-                cstState = ConstraintState::OnGoing;
-            break;
-        case 3:
-
-            MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
-            MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
-            if (!pt2->isSleep() || !pt1->isSleep())
-                cstState = ConstraintState::OnGoing;
-            break;
-        default:
-            // Error
-            break;
-        }
-        break;
-    default:
         break;
     }
 }
 
-bool NormalContactConstraint::broadPhaseTest()
-{
-    return isOuterIntersects(*ett1, *ett2);
-}
-
 void PhysicsContactConstraint::init()
 {
-    
+
     tangent = normal.normal_and_unify();
     const double ivm1 = pt1->getInverseMass();
     const double ivm2 = pt2->getInverseMass();
@@ -206,24 +99,44 @@ void PhysicsContactConstraint::solve_v()
     const double t_otI = oldTangentImpulse;
     oldTangentImpulse = gMath::clamp(oldTangentImpulse + lambda_t, -maxtangentimpulse, maxtangentimpulse);
     lambda_t = oldTangentImpulse - t_otI;
-
-    const tVector &impulse_t = tangent * lambda_t;
-    pt1->applyImpulse_v(impulse_t, toCp1);
-    pt2->applyImpulse_v(impulse_t.reverse(), toCp2);
-
+    if (lambda_t > 0.0)
+    {
+        const tVector &impulse_t = tangent * lambda_t;
+        pt1->applyImpulse_v(impulse_t, toCp1);
+        pt2->applyImpulse_v(impulse_t.reverse(), toCp2);
+    }
     // 求解弹性冲量
     double lambda_n = -normal_inv_effectiveMass * normalDv * restitution;
     const double n_otI = oldNormalImpulse;
     oldNormalImpulse = std::max(0.0, oldNormalImpulse + lambda_n);
     lambda_n = oldNormalImpulse - n_otI;
-    const tVector &impulse_n = normal * lambda_n;
-    pt1->applyImpulse_v(impulse_n, toCp1);
-    pt2->applyImpulse_v(impulse_n.reverse(), toCp2);
+    if (lambda_n > 0.0)
+    {
+        const tVector &impulse_n = normal * lambda_n;
+        pt1->applyImpulse_v(impulse_n, toCp1);
+        pt2->applyImpulse_v(impulse_n.reverse(), toCp2);
+    }
 }
 
 void PhysicsContactConstraint::solve_p()
 {
-    // your code here
+    const gMath::tVector delta = (ett1->getCrd() + toCp1) - (ett2->getCrd() + toCp2);
+    if (delta.dot(normal) > 0)
+    {
+        return;
+    }
+    const double penetration = -delta.dot(normal);
+    const double bias = std::max(0.0, maxPenetraintion - penetration * posBiasFactor);
+    const double lambda = -normal_inv_effectiveMass * bias;
+    if (lambda > 0.0)
+    {
+        const gMath::tVector impulse = normal * lambda;
+        pt1->moveFix(impulse.reverse() * pt1->getInverseMass());
+        pt1->rotateFix(-(toCp1.cross(impulse) * pt1->getInverseInertia()));
+
+        pt2->moveFix(impulse * pt2->getInverseMass());
+        pt2->rotateFix(toCp2.cross(impulse) * pt2->getInverseInertia());
+    }
 }
 
 template <typename... cstTypes>
@@ -234,22 +147,131 @@ inline void ConstraintManager<cstTypes...>::checkAndUpdate(EntityObj *ett1p, Ent
     case CollisionType::NoCollision:
         break;
     case CollisionType::NormalCollision:
-        if (isOuterIntersects(*ett1p, *ett2p) && cstGraph->containsEdge(ett1p , ett2p) && !( ett1p -> isSleep()&& ett2p -> isSleep()))
+        if (isOuterIntersects(*ett1p, *ett2p) && cstGraph->containsEdge(ett1p, ett2p) && !(ett1p->isSleep() && ett2p->isSleep()))
         {
             mOptional<clsn::CollisionLocal> cl = isReallyIntersects(*ett1p, *ett2p);
             if (cl)
-            {                
+            {
                 NormalContactConstraint::newConstraint(*this, ett1p, ett2p, std::move(cl->t1cp), std::move(cl->t2cp), std::move(cl->normal));
             }
         }
     case CollisionType::PhysicsCollision:
-        if (isOuterIntersects(*ett1p, *ett2p) && cstGraph->containsEdge(ett1p , ett2p) && !( ett1p -> isSleep()&& ett2p -> isSleep()))
+        if (isOuterIntersects(*ett1p, *ett2p) && cstGraph->containsEdge(ett1p, ett2p) && !(ett1p->isSleep() && ett2p->isSleep()))
         {
             mOptional<clsn::CollisionLocal> cl = isReallyIntersects(*ett1p, *ett2p);
             if (cl)
-            {                
+            {
                 PhysicsContactConstraint::newConstraint(*this, ett1p, ett2p, std::move(cl->t1cp), std::move(cl->t2cp), std::move(cl->normal));
             }
         }
     }
+}
+
+void SolveChain::updateAll()
+{
+    Constraint *pt = head;
+    while (pt)
+    {
+        pt->update();
+        pt = pt->next;
+    }
+}
+
+template <typename... cstTypes>
+void ConstraintManager<cstTypes...>::integrateAll()
+{
+    while (!toIntegrate.empty())
+    {
+        toIntegrate.top()->Integrate(1);
+        toIntegrate.pop();
+    }
+}
+
+template <typename... cstTypes>
+void ConstraintManager<cstTypes...>::clear()
+{
+    cstAllocManager.clear();
+    for (auto solver_p : chains)
+    {
+        delete solver_p;
+    }
+    toIntegrate.clear();
+}
+
+template <typename... cstTypes>
+void ConstraintManager<cstTypes...>::solveAll()
+{
+    for (auto solver_p : chains)
+    {
+        solver_p->solveAll();
+    }
+}
+
+template <typename... cstTypes>
+void ConstraintManager<cstTypes...>::updateAll()
+{
+    for (auto solver_p : chains)
+    {
+        solver_p->updateAll();
+    }
+}
+
+SolveChain::~SolveChain()
+{
+    Constraint *pt = head;
+    while (pt)
+    {
+        Constraint *next = pt->next;
+        delete pt;
+        pt = next;
+    }
+}
+
+void NormalSolver::solveAll()
+{
+    Constraint *pt = head;
+    while (pt)
+    {
+        pt->solve();
+        pt = pt->getNext();
+    }
+}
+
+void VelAndPosSolver::solveAll()
+{
+    {
+        Constraint *pt = head;
+        while (pt)
+        {
+            pt->solve();
+            pt = pt->getNext();
+        }
+    }
+    for (int i = 0; i < vIterations; i++)
+    {
+        PhysicsContactConstraint *pt = reinterpret_cast<PhysicsContactConstraint *>(head);
+        while (pt)
+        {
+            pt->solve_v();
+            pt = pt->getNext();
+        }
+    }
+    cstManager->integrateAll();
+
+    for (int i = 0; i < pIterations; i++)
+    {
+        PhysicsContactConstraint *pt = reinterpret_cast<PhysicsContactConstraint *>(head);
+        while (pt)
+        {
+            pt->solve_p();
+            pt = pt->getNext();
+        }
+    }
+    // 可能要check，仍出现过大的重合冻结画面
+}
+
+bool ContactConstraint::seperated()
+{
+    const gMath::tVector delta = (ett1->getCrd() + toCp1) - (ett2->getCrd() + toCp2);
+    return delta.dot(normal) > 0;
 }

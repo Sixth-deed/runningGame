@@ -1,10 +1,10 @@
 #ifndef GAME_MAIN
 #define GAME_MAIN
-#include "Gmath.h"
+#include "lib/Gmath.h"
 #include "gObj.h"
-#include "ObjPool.h"
+#include "lib/ObjPool.h"
 #include "BaseObj.h"
-#include "QuadTree.h"
+#include "lib/QuadTree.h"
 #include "Constraint.h"
 #include <unordered_map>
 #include <utility>
@@ -26,7 +26,7 @@ protected:
 
     ManagerT mainObjManager;
 
-    wCstManager *CstManager;
+    PhysicsEngine* mainEngine;
 
     std::tuple<GridManager<GridManagingGameObjTypes>...> &GridManagers;
 
@@ -53,7 +53,7 @@ protected:
     }
     void updateActiveGrids();
     void initializeActiveGrids();
-    mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect);
+    mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect, PhysicsEngine* const engine);
 
     template <typename cstType, typename... Args>
     cstType* newConstraint(Args... args){
@@ -95,11 +95,11 @@ public:
 
     static mGame &exampleInitialize()
     {
-        ConstraintManager mainCstManager;
-        PhysicsConstants mainEngine(mainCstManager);
-        PhysicsObj::setPhysicsEngine(&mainEngine);
+        PhysicsEngine* pEngine = new PhysicsEngine();
+        PhysicsObj::setPhysicsEngine(pEngine);
+        Constraint::setCstManager(pEngine->getCstManager());
 
-        auto &theGame = mGame<ObjectManager<MoveObj, EntityObj, ActObj>, EntityObj, ActObj, gObj>({2, 1, 1}, {{4, 1}, {3, 1}, {1, 1}}, gMath::mRectangle(-1000, 1000, 500, -300));
+        auto &theGame = mGame<ObjectManager<MoveObj, EntityObj, ActObj>, EntityObj, ActObj, gObj>({2, 1, 1}, {{4, 1}, {3, 1}, {1, 1}}, gMath::mRectangle(-1000, 1000, 500, -300), pEngine);
         auto gObjRootGrid = std::get<Grid<gObj> *>(theGame.rootGrids);
         auto ActRootGrid = std::get<Grid<ActObj> *>(theGame.rootGrids);
         auto EntityRootGrid = std::get<Grid<EntityObj> *>(theGame.rootGrids);

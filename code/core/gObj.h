@@ -3,10 +3,10 @@
 
 #include <vector>
 #include <string>
-#include "Gmath.h"
-#include "ObjPool.h"
-#include "idHandler.h"
-#include "QuadTree.h"
+#include "lib/Gmath.h"
+#include "lib/ObjPool.h"
+#include "lib/idHandler.h"
+#include "lib/QuadTree.h"
 
 
 #define GRID_NEEDED

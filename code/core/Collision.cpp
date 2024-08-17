@@ -6,24 +6,24 @@
 #include <execution>
 
 using namespace clsn;
-CollisionBox::Projection CollisionBox::projectTo(const tVector &axis) const
+gMath::Projection CollisionBox::projectTo(const tVector &axis) const
 {
     switch (vectors.size())
     {
     case 1:
         const tVector r = axis * radius();
-        return Projection(-radius(), r.reverse(), radius(), std::move(r));
+        return gMath::Projection(-radius(), r.reverse(), radius(), std::move(r));
     case 2:
         double t = vectors[0].dot(axis);
         const tVector v = axis * t;
         if (t > 0.0)
-            return Projection(-t, v.reverse(), t, std::move(v));
-        return Projection(t, std::move(v), -t, v.reverse());
+            return gMath::Projection(-t, v.reverse(), t, std::move(v));
+        return gMath::Projection(t, std::move(v), -t, v.reverse());
     default:
         // 考虑到是顺时针遍历顶点可以稍作优化
         double max = vectors[0].dot(axis), min;
         int i = 1;
-        tVector *minpt, *maxpt;
+        const tVector *minpt, *maxpt;
         for (; i < vectors.size(); i++)
         {
             double projection_i = vectors[i].dot(axis);
@@ -52,7 +52,7 @@ CollisionBox::Projection CollisionBox::projectTo(const tVector &axis) const
             }
         }
 
-        return Projection(min, tVector(*minpt), max, tVector(*maxpt));
+        return gMath::Projection(min, tVector(*minpt), max, tVector(*maxpt));
     }
 }
 
@@ -80,12 +80,15 @@ void clsn::CollisionBox::RotateTo(const Angle &angle)
                 vec.unify(); });
     }
 }
-
 mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2)
 {
+    //SAT算法
+    //GJK - EPA
+
+
     // 由对象1的中心点指向对象2的中心点的向量
     tVector offset12 = crd2 - crd1;
-    auto consolveLineAndCircle = [](const tVector &offset, const CollisionBox &Line, const CollisionBox &Circle, bool reversed)
+    auto consolveLineAndCircle = [] (const tVector &offset, const CollisionBox &Line, const CollisionBox &Circle, bool reversed)
         -> mOptional<CollisionLocal>
     {
         // 不考虑线段两头撞上圆的情形，本身线段只是作辅助的补充碰撞箱
@@ -120,7 +123,7 @@ mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, Collisi
         // 不考虑线段两头撞上多边形的情形，本身线段只是作辅助的补充碰撞箱
         const tVector n = Line.ns->at(0).keepDirectionWith(offset);
 
-        CollisionBox::Projection p = Polygon.projectTo(n);
+        gMath::Projection p = Polygon.projectTo(n);
 
         p.addOffset(offset.reverse().dot(n));
         if (p.high < 0 || p.low > 0)

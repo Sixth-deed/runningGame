@@ -1,6 +1,6 @@
 #ifndef GAME_OBJECT_COLLISION
 #define GAME_OBJECT_COLLISION
-#include "Gmath.h"
+#include "lib/Gmath.h"
 #include "gObj.h"
 #include <vector>
 #include <algorithm>
@@ -48,26 +48,7 @@ namespace clsn
         // anlge -- 初始旋转角度
         CollisionBox(std::vector<tVector> *array, bool rotatable_ = false,const Angle &angle = 0.0);
         // 投影范围，辅助SAT判定
-        struct Projection
-        {
-            double low;
-            const tVector toLowPoint;
-             double high;
-            const tVector toHighPoint;
-            Projection() = default;
-            Projection(const double l, const tVector&& tlp, const double h, const tVector&& thp) : low(l), toLowPoint(tlp), high(h), toHighPoint(thp) {}
-            //只启用移动语义
-            Projection(Projection&& p ) = default;
-            Projection(const Projection& p ) = delete;
-            Projection& operator=(Projection&& p ) = default;
-            Projection& operator=(const Projection& p ) = delete;
-            void addOffset(double off)
-            {
-                low += off;
-                high += off;
-            }
-            
-        };
+        
 
 
         friend mOptional<CollisionLocal> isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2);
@@ -83,6 +64,9 @@ namespace clsn
         // 粗检测
         friend inline bool isOuterIntersect(const Crdinate &crd1, const CollisionBox &b1, const Crdinate &crd2, const CollisionBox &b2);
         std::vector<tVector>* getShape(){
+            return vectors_p;
+        }
+        std::vector<tVector>* getShape_c() const{
             return vectors_p;
         }
     };
@@ -118,6 +102,11 @@ namespace clsn
         CollisionLocal(CollisionLocal &&cl) = default;
         CollisionLocal& operator=(const CollisionLocal &cl) = delete;
         CollisionLocal& operator=(CollisionLocal &&cl) = default;
+    };
+
+    class ComlplexCollisionBox : CollisionBox{
+        //对碰撞箱的组合
+
     };
 }
 

@@ -1,9 +1,9 @@
 #ifndef BASIC_GAME_OBJECT
 #define BASIC_GAME_OBJECT
-#include "Gmath.h"
+#include "lib/Gmath.h"
 #include "gObj.h"
-#include "idHandler.h"
-#include "Constants.h"
+#include "lib/idHandler.h"
+#include "lib/Constants.h"
 #include <csignal>
 #include <cstdlib>
 #include <memory>
@@ -406,7 +406,7 @@ public:
         pt->activeRectangle = &rect;
     }
 };
-class PhysicsConstants;
+class PhysicsEngine;
 class PhysicsObj : virtual public EntityObj
 {
 public:
@@ -466,7 +466,10 @@ public:
     bool isDragAffected() const{
         return dragAffected;
     }
-    protected:
+    virtual void moveFix(const gMath::tVector&& ) = 0;
+    virtual void rotateFix(const gMath::Angle&& ) = 0;
+    virtual double getInverseInertia() const {return 0.0;};
+protected:
     // 质量
     double mass;
     //质量倒数
@@ -480,11 +483,12 @@ public:
     // 是否受阻尼影响（不是摩擦力）
     bool dragAffected;
 
-    static PhysicsConstants* mainPhysicsEngine;
+    static PhysicsEngine* mainPhysicsEngine;
 
     PhysicsObj() : EntityObj() {}
-    static void setPhysicsEngine(PhysicsConstants* p){
+    static void setPhysicsEngine(PhysicsEngine* p){
         mainPhysicsEngine = p;
     }
+    
 };  
 #endif
