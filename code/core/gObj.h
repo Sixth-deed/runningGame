@@ -7,7 +7,8 @@
 #include "ObjPool.h"
 #include "idHandler.h"
 #include "QuadTree.h"
-
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
 
 #define GRID_NEEDED
 #define PRIORITY_LEVEL0
@@ -95,3 +96,5 @@ inline gObjType& basicObjInit(managerT& m,const gMath::Crdinate& crd = gMath::Cr
     return gobj;
 }
 #endif 
+
+//sendpacktype函数用于发信后面的五项

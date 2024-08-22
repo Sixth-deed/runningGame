@@ -7,6 +7,9 @@
 #include <thread>
 #include <chrono>
 #include <unordered_set>
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
+
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::deleteActiveGridsRef()
 {
@@ -155,3 +158,6 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop(gameLoopParam &param
         std::this_thread::sleep_for(clocksPerFrame - elasped);
     GameLoop(param);
 }
+
+
+//可能用vector和list可以实现
