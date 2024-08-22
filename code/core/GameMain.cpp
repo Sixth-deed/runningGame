@@ -1,6 +1,6 @@
 #include "GameMain.h"
 #include "BaseObj.h"
-#include "Gmath.h"
+#include "lib/Gmath.h"
 #include "../fwd/forwarder.h"
 #include <algorithm>
 #include <cerrno>
@@ -54,9 +54,11 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::initializeActiveGrids()
     ((helper_InsertActiveGrids(std::get<GridManagingGameObjTypes>(activeGridsTuple), rootGrid<GridManagingGameObjTypes>)), ...);
 }
 template <typename ManagerT, typename... GridManagingGameObjTypes>
-mGame<ManagerT, GridManagingGameObjTypes...>::mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect) : mainObjManager(initialSizes),
-                                                                                                                                                                                                   GridManagers(createGirdManagers(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), gridsInitialize.begin())),
-                                                                                                                                                                                                   rootGrids(createRootGrids(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), rect))
+mGame<ManagerT, GridManagingGameObjTypes...>::mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect, PhysicsEngine* const engine) : 
+    mainObjManager(initialSizes),
+    GridManagers(createGirdManagers(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), gridsInitialize.begin())),
+    rootGrids(createRootGrids(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), rect)),
+    mainEngine(engine)
 {
 }
 template <std::size_t... Is, typename T>
@@ -111,19 +113,19 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop(gameLoopParam &param
     // 约束修正
     for (Grid<EntityObj> *ettobjGrid_p : activeGrids<EntityObj>())
     {
-        ettobjGrid_p->forEachInGrid([const &toUpdate, ettobjGrid_p](EntityObj *ettObj_p)
+        ettobjGrid_p->forEachInGrid([const &toUpdate, ettobjGrid_p, mainEngine](EntityObj *ettObj_p)
         {
             if (ettObj_p->movable){
                 if (toUpdate.count(reinterpret_cast<MoveObj*>(ettObj_p))){
-                    ettobjGrid_p -> forEachInGrid([ettObj_p](EntityObj* other){
-                            CstManager.checkAndUpdate(ettObj_p, other);
+                    ettobjGrid_p -> forEachInGrid([ettObj_p , mainEngine](EntityObj* other){
+                            mainEngine->getCstManager()->checkAndUpdate(ettObj_p, other);
                             
                     });
                 }
             } });
     }
-    constraintsManager.updateAll();
-    constraintsManager.solveAll();
+    mainEngine->getCstManager()->updateAll();
+    mainEngine->getCstManager()->solveAll();
 
     // 处理接收到的操作
     auto commandQueue = aquireCommandBuffer();

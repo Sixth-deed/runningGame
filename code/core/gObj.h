@@ -3,12 +3,11 @@
 
 #include <vector>
 #include <string>
-#include "Gmath.h"
-#include "ObjPool.h"
-#include "idHandler.h"
-#include "QuadTree.h"
-#include <websocketpp/config/asio_no_tls.hpp>
-#include <websocketpp/server.hpp>
+#include "lib/Gmath.h"
+#include "lib/ObjPool.h"
+#include "lib/idHandler.h"
+#include "lib/QuadTree.h"
+
 
 #define GRID_NEEDED
 #define PRIORITY_LEVEL0

@@ -20,7 +20,11 @@ namespace gMath
      */
     inline double clamp(double value, double min, double max);
     using axisV = unsigned int;
+    //角度
     class Angle;
+
+    //二维图像到轴的投影
+    struct Projection;
     // 二维向量
     class tVector
     {
@@ -155,11 +159,11 @@ namespace gMath
         {
             this->y = y_;
         }
-        axisV get_x()
+        axisV get_x() const
         {
             return x;
         }
-        axisV get_y()
+        axisV get_y() const
         {
             return y;
         }
@@ -195,14 +199,15 @@ namespace gMath
 
     public:
         mRectangle(axisV left, axisV right, axisV top, axisV bottom) : l(left), r(right), t(top), b(bottom) {}
-        bool Inside(Crdinate crd)
+        bool Inside(const Crdinate& crd) const
         {
             return crd.get_x() <= r && crd.get_y() <= t && crd.get_x() >= l && crd.get_y() >= b;
         }
-        bool intersects(const mRectangle &rec)
+        bool intersects(const mRectangle &rec) const
         {
             return l <= rec.r && r >= rec.l && t >= rec.b && b <= rec.t;
         }
+        bool Inside(const Crdinate& crd, const std::vector<tVector>* vs) const ;
     };
     class Angle
     {
@@ -317,6 +322,7 @@ namespace gMath
                 addEdge(edge[0], edge[1]);
             }
         }
+        Gragh() = default;
         void addNode(const T &value)
         {
             if (adjacencyList.find(value) == adjacencyList.end())
@@ -400,6 +406,26 @@ namespace gMath
     private:
         std::unordered_map<T, std::unordered_set<T>> adjacencyList;
     };
+    struct Projection
+        {
+            double low;
+            const tVector toLowPoint;
+             double high;
+            const tVector toHighPoint;
+            Projection() = default;
+            Projection(const double l, const tVector&& tlp, const double h, const tVector&& thp) : low(l), toLowPoint(tlp), high(h), toHighPoint(thp) {}
+            //只启用移动语义
+            Projection(Projection&& p ) = default;
+            Projection(const Projection& p ) = delete;
+            Projection& operator=(Projection&& p ) = default;
+            Projection& operator=(const Projection& p ) = delete;
+            void addOffset(double off)
+            {
+                low += off;
+                high += off;
+            }
+            
+        };
 }
 
 template <>
