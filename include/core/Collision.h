@@ -30,7 +30,7 @@ namespace clsn
         // 必须保证是凸多边形
         // 当vectors容量为1时，则标志这是一个球形的碰撞箱，规定传入的向量在x轴正方向的投影为半径长
         // 当vectors容量为2时，标志这是一个线段碰撞箱，其中只有第一个向量有效，线段为由中心出发的向量和反向延伸的向量合成的
-        std::vector<tVector> &vectors;
+        std::vector<tVector> vectors;
         std::vector<tVector> *vectors_p;
         // 所有边的法向量
         std::vector<tVector> *ns;
@@ -46,10 +46,12 @@ namespace clsn
         // 当vectors容量为1时，则标志这是一个球形的碰撞箱，规定传入的向量在x轴正方向的投影为半径长
         // 当vectors容量为2时，标志这是一个线段碰撞箱，其中只有第一个向量有效，线段为由中心出发的向量和反向延伸的向量合成的
         // anlge -- 初始旋转角度
-        CollisionBox(std::vector<tVector> *array, bool rotatable_ = false,const Angle &angle = 0.0);
+        CollisionBox(const std::vector<tVector> *array, bool rotatable_ = false,const Angle &angle = 0.0);
+        CollisionBox(std::vector<tVector>&& array, bool rotatable_ = false, const Angle &angle = 0.0);
         // 投影范围，辅助SAT判定
-        
-
+        CollisionBox& operator=(CollisionBox&& cbox) = default;
+        CollisionBox(CollisionBox&& cbox) = default;
+        CollisionBox() = default;
 
         friend mOptional<CollisionLocal> isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2);
         // 将整个碰撞箱投影到某条轴上
@@ -72,7 +74,7 @@ namespace clsn
     };
     
     mOptional<CollisionLocal> isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2);
-    inline bool clsn::isOuterIntersect(const Crdinate &crd1, const CollisionBox &b1, const Crdinate &crd2, const CollisionBox &b2)
+    inline bool isOuterIntersect(const Crdinate &crd1, const CollisionBox &b1, const Crdinate &crd2, const CollisionBox &b2)
     {
         // 由对象1的中心点指向对象2的中心点的向量
         tVector offset12 = crd2 - crd1;
@@ -96,7 +98,7 @@ namespace clsn
         gMath::tVector normal;
         gMath::tVector tangent;
         CollisionLocal(const gMath::tVector &toBody1_cp_, const gMath::tVector &toBody2_cp_, const gMath::tVector &normal_, const gMath::tVector &tangent_) : toBody1_cp(toBody1_cp_), toBody2_cp(toBody2_cp_), normal(normal_), tangent(tangent_) {}
-        
+        CollisionLocal() = default;        
         //只允许移动
         CollisionLocal(const CollisionLocal &cl) = delete;
         CollisionLocal(CollisionLocal &&cl) = default;

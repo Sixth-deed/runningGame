@@ -104,12 +104,7 @@ namespace gMath
             y += r.y;
             return *this;
         }
-        void rotate(const Angle &angle)
-        {
-            double sinA = std::sin(angle.getRadians()), cosA = std::cos(angle.getRadians()), tx = x, ty = y;
-            x = tx * cosA - ty * sinA;
-            y = tx * sinA + ty * cosA;
-        }
+        void rotate(const Angle &angle);
         tVector reverse() const
         {
             return tVector(-x, -y);
@@ -194,10 +189,10 @@ namespace gMath
     };
     class mRectangle
     {
-    protected:
-        axisV l, r, t, b;
 
     public:
+
+        axisV l, r, t, b;
         mRectangle(axisV left, axisV right, axisV top, axisV bottom) : l(left), r(right), t(top), b(bottom) {}
         bool Inside(const Crdinate& crd) const
         {
@@ -208,6 +203,7 @@ namespace gMath
             return l <= rec.r && r >= rec.l && t >= rec.b && b <= rec.t;
         }
         bool Inside(const Crdinate& crd, const std::vector<tVector>* vs) const ;
+        mRectangle& operator=(const mRectangle&) = default;
     };
     class Angle
     {
@@ -315,14 +311,14 @@ namespace gMath
     class Graph
     {
     public:
-        Gragh(std::initializer_list<std::initializer_list<T>>&& edges)
+        Graph(std::initializer_list<std::initializer_list<T>>&& edges)
         {
             for (const auto &edge : edges)
             {
                 addEdge(edge[0], edge[1]);
             }
         }
-        Gragh() = default;
+        Graph() = default;
         void addNode(const T &value)
         {
             if (adjacencyList.find(value) == adjacencyList.end())
@@ -403,6 +399,10 @@ namespace gMath
         std::unordered_set<T>& operator[](const T& key){
             return adjacencyList[key];
         }
+        void removeEdge(const T& from, const T& to){
+            adjacencyList[from].erase(to);
+            adjacencyList[to].erase(from);
+        }
     private:
         std::unordered_map<T, std::unordered_set<T>> adjacencyList;
     };
@@ -446,4 +446,12 @@ double gMath::clamp(double value, double min, double max)
 {
     return std::max(min, std::min(max, value));
 }
+
+
+inline void gMath::tVector::rotate(const Angle &angle)
+        {
+            double sinA = std::sin(angle.getRadians()), cosA = std::cos(angle.getRadians()), tx = x, ty = y;
+            x = tx * cosA - ty * sinA;
+            y = tx * sinA + ty * cosA;
+        }
 #endif

@@ -1,5 +1,5 @@
 #ifndef GAME_IDHANDLER
-#define GMAE_IDHANDLER
+#define GAME_IDHANDLER
 
 #include <climits>
 #include <stdexcept>
@@ -8,7 +8,6 @@ using mID = unsigned int;
 class idHandler{
     private:
         mID idPT;
-        static idHandler* mainIdHandler;
     public:
         idHandler(): idPT(0){}
         //获取一个有效的新id
@@ -20,10 +19,6 @@ class idHandler{
         }
 
 
-        //给其他模块访问mainIDHandler的引用的方式
-        static idHandler& mainHandler(){
-            return *mainIdHandler;
-        }
 };
 
 #endif

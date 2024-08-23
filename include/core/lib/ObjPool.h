@@ -5,7 +5,7 @@
 #include <climits>
 #include <tuple>
 #include <stdexcept>
-
+#include "mOptional.h"
 //对象池，用于管理对象分配和释放
 //gObjType --任意gObj类型
 template <typename gObjType>
@@ -28,7 +28,12 @@ class ObjPool{
     public :
         //n -- 对象池初始大小
         //调用对应模板的默认构造函数
-        ObjPool(int n) : pool(n,new gObjType()){}
+        ObjPool(int n)  {
+            pool.reserve(n);
+            for (gObjType*& pt : pool){
+                pt = new gObjType();
+            }
+        }
         ObjPool(): pool(){}
         //获取对象
         gObjType& acquire();
@@ -54,6 +59,9 @@ class ObjPool{
             clear();
         }
 };
+
+
+
 //用于管理所有类型的对象的管理器
 //Types是所有传入的类型模板
 template <typename... Types>
@@ -77,7 +85,7 @@ class ObjectManager {
         template <typename gObjType>
             //获取对象
             gObjType* acquire() {
-                return getPool<gObjType>().acquire();
+                return &getPool<gObjType>().acquire();
             }
 
         template <typename gObjType>
@@ -132,6 +140,16 @@ class ObjectManager {
         std::tuple<ObjPool<Types>...> pools;
 };
 
-
+template <typename gObjType>
+gObjType& ObjPool<gObjType>::acquire(){
+    if (pool.empty()){
+        return static_cast<gObjType&>(*(new gObjType()));
+    }
+    else{
+        gObjType* pt = pool.back();
+        pool.pop_back();
+        return *pt;
+    }
+}
 
 #endif

@@ -9,7 +9,7 @@
 #include <memory>
 #include <new>
 #include <unordered_map>
-
+#include <utility>
 // 实体类型
 enum EntityType
 {
@@ -82,12 +82,12 @@ class EntityObj : virtual public gObj
 {
 protected:
     // 碰撞箱
-    clsn::CollisionBox *clsnBox;
+    clsn::CollisionBox clsnBox;
     /**
      * @brief Default constructor.
      * Initializes the collision box to nullptr.
      */
-    EntityObj() : gObj(), clsnBox(nullptr) {}
+    EntityObj() : gObj(), clsnBox() {}
     static const EntityType etype;
 
 public:
@@ -95,12 +95,12 @@ public:
      * @brief Returns a reference to the collision box associated with the entity object.
      * @return clsn::CollisionBox&
      */
-    clsn::CollisionBox &getCollisionBox() { return *clsnBox; }
+    clsn::CollisionBox &getCollisionBox() { return clsnBox; }
     /**
      * @brief Returns a constant reference to the collision box associated with the entity object.
      * @return const clsn::CollisionBox&
      */
-    const clsn::CollisionBox &get_c_CollisionBox() const { return *clsnBox; }
+    const clsn::CollisionBox &get_c_CollisionBox() const { return clsnBox; }
     /**
      * @brief Pure virtual function to handle collisions with another entity object.
      * Must be implemented by derived classes.
@@ -117,11 +117,11 @@ public:
      * @param angle_ The angle of the entity object.
      * @return EntityObj&
      */
-    template <typename managerT>
+/*    template <typename managerT>
     static EntityObj &newObj(managerT &m, const gMath::Crdinate &crd = gMath::Crdinate(0, 0), const gMath::Angle &angle_ = 0.0)
     {
         return basicObjInit<EntityObj>(m, crd, angle_);
-    }
+    }*/
     /**
      * @brief Static factory function to create a new entity object with the specified coordinates, angle, and collision box.
      * @tparam managerT The type of the manager object.
@@ -131,16 +131,16 @@ public:
      * @param cl The collision box of the entity object.
      * @return EntityObj&
      */
-    template <typename managerT>
+    /*template <typename managerT>
     static EntityObj &newObj(managerT &m, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl)
     {
         EntityObj &t = basicObjInit<EntityObj>(m, crd, angle_);
         t.clsnBox = &cl;
         return t;
-    }
-    static void initObj(EntityObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl){
+    }*/
+    static void initObj(EntityObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl){
         gObj::initObj(pt, crd, angle_);
-        pt->clsnBox = &cl;
+        pt->clsnBox = std::move(cl);
     }
     /**
      * @brief Friend function to determine the collision type between two entity objects.
@@ -231,6 +231,9 @@ public:
         ActObj::initObj(pt, crd, angle_);
         delete pt->actions;
         pt->actions = &acts;
+    }
+    ~DynamicActObj(){
+        delete actions;
     }
 };
 
@@ -375,6 +378,50 @@ public:
         angleAcceleration = a;
     }
 };
+class ActiveRectangle : public gMath::mRectangle
+{
+private:
+    bool moved = false;
+
+public:
+    static std::vector<ActiveRectangle *> rects;
+    ActiveRectangle(gMath::axisV left, gMath::axisV right, gMath::axisV top, gMath::axisV bottom) : mRectangle(left, right, top, bottom)
+    {
+
+        rects.push_back(this);
+    }
+    void setNotMoved()
+    {
+        moved = false;
+    }
+    bool is_moved()
+    {
+        return moved;
+    }
+    /// @brief 更新活跃方格的位置. 更新前需要保证发生了位移
+    /// @param v 方格移动的位移
+    void Update(const gMath::tVector &v)
+    {
+        l += v.x;
+        r += v.x;
+        t += v.y;
+        b += v.y;
+        moved = true;
+    }
+    static void clear()
+    {
+        rects.clear();
+    }
+    static bool intersectsWith(const gMath::mRectangle& rec){
+        for (auto A_rect : rects){
+            if (A_rect->intersects(rec)){
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
 
 class ActivateObj : virtual public gObj
 {
@@ -405,12 +452,14 @@ public:
         gObj::initObj(pt, crd, angle_);
         pt->activeRectangle = &rect;
     }
+    ~ActivateObj(){
+        delete activeRectangle;
+    }
 };
 class PhysicsEngine;
 class PhysicsObj : virtual public EntityObj
 {
-public:
-    template <typename managerT>
+public:/*    template <typename managerT>
     static PhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd = gMath::Crdinate(0, 0), const gMath::Angle &angle_ = 0.0)
     {
         return basicObjInit<PhysicsObj>(m, crd, angle_);
@@ -422,16 +471,16 @@ public:
         PhysicsObj &t = basicObjInit<PhysicsObj>(m, crd, angle_);
         t.clsnBox = &cl;
         t.mass = mass_;
-        pt->inverseMass = mass_ ==0 ? 0: 1 / mass_;
+        t.inverseMass = mass_ ==0 ? 0: 1 / mass_;
         t.friction_C = friction_C_;
         t.restitution_C = restitution_C_;
         t.gravityAffected = graviityAffected_;
         t.dragAffected = dragAffected_;
         return t;
-    }
-    static void initObj(PhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl,
+    }*/
+    static void initObj(PhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl,
                         double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0, bool graviityAffected_ = true, bool dragAffected_ = true){
-                            EntityObj::initObj(pt, crd, angle_, cl);
+                            EntityObj::initObj(pt, crd, angle_, std::move(cl));
                             pt->mass = mass_;
                             pt->inverseMass = mass_ ==0 ? 0: 1 / mass_;
                             pt->friction_C = friction_C_;
@@ -469,6 +518,9 @@ public:
     virtual void moveFix(const gMath::tVector&& ) = 0;
     virtual void rotateFix(const gMath::Angle&& ) = 0;
     virtual double getInverseInertia() const {return 0.0;};
+    static void setPhysicsEngine(PhysicsEngine* p){
+        mainPhysicsEngine = p;
+    }
 protected:
     // 质量
     double mass;
@@ -486,9 +538,7 @@ protected:
     static PhysicsEngine* mainPhysicsEngine;
 
     PhysicsObj() : EntityObj() {}
-    static void setPhysicsEngine(PhysicsEngine* p){
-        mainPhysicsEngine = p;
-    }
+    
     
 };  
 #endif

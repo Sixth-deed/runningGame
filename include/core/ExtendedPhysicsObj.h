@@ -104,11 +104,11 @@ protected:
     MovePhysicsObj() : PhysicsObj(), MoveObj() {}
     
 public:
-    template <typename managerT>
+/*    template <typename managerT>
     static MovePhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd = gMath::Crdinate(0, 0), const gMath::Angle &angle_ = 0.0)
     {
         return basicObjInit<MovePhysicsObj>(m, crd, angle_);
-    }
+    }*/
     /**
          * @brief Constructs a new instance of the MovePhysicsObj class with all the specified parameters.
          *
@@ -133,13 +133,13 @@ public:
          *
          * @return A reference to the newly created MovePhysicsObj object.
          */
-    template <typename managerT>
+   /* template <typename managerT>
     static MovePhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, const gMath::Angle &angle_, 
                             clsn::CollisionBox &cl,
                               double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0, bool graviityAffected_ = true, bool dragAffected_ = true,
                                const gMath::tVector &initialVelocity = gMath::tVector(0.0, 0.0), const gMath::tVector &initialAccelr = gMath::tVector(0.0, 0.0)
-    );
-    static void initObj(MovePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl,
+    );*/
+    static void initObj(MovePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl,
                         double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0, bool graviityAffected_ = true, bool dragAffected_ = true,
                         const gMath::tVector &initialVelocity = gMath::tVector(0.0, 0.0), const gMath::tVector &initialAccelr = gMath::tVector(0.0, 0.0));
     inline void applyForceOnCenter(const gMath::tVector &force) override;
@@ -156,7 +156,7 @@ public:
     void rotateFix(const gMath::Angle &&anglefix) override{}
 };
 
-
+/*
 template <typename managerT>
 inline MovePhysicsObj &MovePhysicsObj::newObj(managerT &m, const gMath::Crdinate &crd, const gMath::Angle &angle_, 
                             clsn::CollisionBox &cl,
@@ -169,10 +169,10 @@ inline MovePhysicsObj &MovePhysicsObj::newObj(managerT &m, const gMath::Crdinate
         initObj(&t, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, initialVelocity, initialAccelr);
         return t;
 }
-
-inline void MovePhysicsObj::initObj(MovePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::tVector &initialVelocity, const gMath::tVector &initialAccelr)
+*/
+inline void MovePhysicsObj::initObj(MovePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::tVector &initialVelocity, const gMath::tVector &initialAccelr)
 {
-    PhysicsObj::initObj(pt, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
+    PhysicsObj::initObj(pt, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
     MoveObj::initObj(pt, crd, angle_, initialVelocity, initialAccelr);
 }
 
@@ -262,6 +262,7 @@ public:
 
     /// Indicates the type of the entity.
     static const  EntityType etype = EntityType::StableEntity;
+    /*
     template <typename managerT>
     static StablePhysicsObj& newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_ = 0.0){
         return basicObjInit<StablePhysicsObj>(m, crd, angle_);
@@ -272,10 +273,10 @@ public:
         StablePhysicsObj &t = m.template acquire<StablePhysicsObj>();
         initObj(&t, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
         return t;
-    }
-    static void initObj(StablePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl,
+    }*/
+    static void initObj(StablePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl,
     double mass_ =0.0, double friction_C_ = 0.0, double restitution_C_ =1.0, bool graviityAffected_ =false, bool dragAffected_ = false){
-        PhysicsObj::initObj(pt, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
+        PhysicsObj::initObj(pt, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
     }
     void moveFix(const gMath::tVector &&fix) override{}
     void rotateFix(const gMath::Angle &&anglefix) override{}
@@ -310,6 +311,7 @@ public:
      *
      * @return A reference to the newly created RotatePhysicsObj object.
      */
+    /*
     template <typename managerT>
     static RotatePhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_ = 0.0)
     {
@@ -320,16 +322,17 @@ public:
     static RotatePhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl,
                                     double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0,
                                     bool graviityAffected_ = true, bool dragAffected_ = true, 
-                                    const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0,double inertia_ = 1.0);
-    static void initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl,
+                                    const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0,double inertia_ = 1.0); */
+    static void initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl,
                                     double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0,
                                     bool graviityAffected_ = true, bool dragAffected_ = true,
                                     const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0,double inertia_ = 1.0);
+    /*
     template <typename managerT>
     static RotatePhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl, 
     double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0, 
-    bool graviityAffected_ = true, bool dragAffected_ = true ,const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0);
-    static void initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl,
+    bool graviityAffected_ = true, bool dragAffected_ = true ,const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0); */
+    static void initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl,
     double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0,
     bool graviityAffected_ = true, bool dragAffected_ = true, const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0);
     
@@ -433,6 +436,7 @@ public:
         MovePhysicsObj::applyImpulse_v(impulse,r);
         RotatePhysicsObj::applyImpulse_v(impulse,r);
     }
+    /*
     template <typename managerT>
     static LiberalPhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_ = 0.0)
     {
@@ -450,13 +454,15 @@ public:
         initObj(&t, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, inertia_, initialVelocity, initialAccelr);
         return t;
     }
-    static void initObj(LiberalPhysicsObj *t, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl,
+    */
+    static void initObj(LiberalPhysicsObj *t, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &&cl,
     double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_,
     const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0, double inertia_ = 1.0,
     const gMath::tVector &initialVelocity = gMath::tVector(0.0, 0.0), const gMath::tVector &initialAccelr = gMath::tVector(0.0, 0.0)){
-        MovePhysicsObj::initObj(t, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
-        RotatePhysicsObj::initObj(t, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, inertia_);
+        MovePhysicsObj::initObj(t, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
+        RotatePhysicsObj::initObj(t, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, inertia_);
     }
+    /*
     template <typename managerT>
     static LiberalPhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl, 
     double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, 
@@ -465,12 +471,13 @@ public:
     )
     {
         return newObj(m, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, caculateInertia(mass_, cl.getShape()), initialVelocity, initialAccelr);
-    }
-    static void initObj(LiberalPhysicsObj *t, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl,
+    }*/
+
+    static void initObj(LiberalPhysicsObj *t, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &&cl,
     double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_,
     const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0,
     const gMath::tVector &initialVelocity = gMath::tVector(0.0, 0.0), const gMath::tVector &initialAccelr = gMath::tVector(0.0, 0.0)){  
-        initObj(t, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, caculateInertia(mass_, cl.getShape()),initialVelocity, initialAccelr);
+        initObj(t, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, caculateInertia(mass_, cl.getShape()),initialVelocity, initialAccelr);
     }
     inline void Integrate(double dt);
     void moveFix(const gMath::tVector &&fix) override;
@@ -478,33 +485,33 @@ public:
 };
 
 
-
+/*
 template <typename managerT>
-inline RotatePhysicsObj &RotatePhysicsObj::newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV, const gMath::Angle &angleA ,double inertia_)
+inline RotatePhysicsObj &RotatePhysicsObj::newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV, const gMath::Angle &angleA ,double inertia_)
 {
         RotatePhysicsObj &t = m.template acquire<RotatePhysicsObj>();
-        initObj(&t, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, inertia_);
+        initObj(&t, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, inertia_);
         return t;
 }
 #include <vector>
 double caculateInertia(double mass_, std::vector<gMath::tVector> *shape);
 template <typename managerT>
-inline RotatePhysicsObj &RotatePhysicsObj::newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV , const gMath::Angle &angleA )
+inline RotatePhysicsObj &RotatePhysicsObj::newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV , const gMath::Angle &angleA )
 {
-    return newObj(m, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, caculateInertia(mass_, cl.getShape()));
+    return newObj(m, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, caculateInertia(mass_, cl.getShape()));
 }
-
-inline void RotatePhysicsObj::initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV, const gMath::Angle &angleA, double inertia_)
+*/
+inline void RotatePhysicsObj::initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV, const gMath::Angle &angleA, double inertia_)
 {
-    PhysicsObj::initObj(pt, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
+    PhysicsObj::initObj(pt, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
     RotateObj::initObj(pt, crd, angle_, angleV, angleA);
     pt->Inertia = inertia_;
     pt->inverseInertia = 1 / inertia_;
 }
 
-inline void RotatePhysicsObj::initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV, const gMath::Angle &angleA)
+inline void RotatePhysicsObj::initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV, const gMath::Angle &angleA)
 {
-    initObj(pt, crd, angle_, cl, mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, caculateInertia(mass_, cl.getShape()));
+    initObj(pt, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, caculateInertia(mass_, cl.getShape()));
 }
 
 inline void RotatePhysicsObj::applyForceAtPoint(const gMath::tVector &force, const gMath::Crdinate &point)

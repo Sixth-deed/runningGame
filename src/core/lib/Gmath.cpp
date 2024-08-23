@@ -1,20 +1,22 @@
-#include "Gmath.h"
+#include "core/lib/Gmath.h"
 
 using namespace gMath;
 Projection projectTo( const std::vector<tVector>& vectors,const tVector &axis) 
 {
     switch (vectors.size())
     {
-    case 1:
+    case 1:{
         const tVector r = axis * vectors[0].x;
         return gMath::Projection(-vectors[0].x, r.reverse(), vectors[0].x, std::move(r));
-    case 2:
+           }
+               case 2:{
         double t = vectors[0].dot(axis);
         const tVector v = axis * t;
         if (t > 0.0)
             return gMath::Projection(-t, v.reverse(), t, std::move(v));
         return gMath::Projection(t, std::move(v), -t, v.reverse());
-    default:
+                      }
+                          default:{
         // 考虑到是顺时针遍历顶点可以稍作优化
         double max = vectors[0].dot(axis), min;
         int i = 1;
@@ -48,7 +50,8 @@ Projection projectTo( const std::vector<tVector>& vectors,const tVector &axis)
         }
 
         return gMath::Projection(min, tVector(*minpt), max, tVector(*maxpt));
-    }
+                                  }
+                                  }
 }
 bool gMath::mRectangle::Inside(const Crdinate &crd, const std::vector<tVector> *vs) const
 {

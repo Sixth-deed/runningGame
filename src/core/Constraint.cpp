@@ -1,8 +1,13 @@
-#include "Constraint.h"
-#include "ExtendedPhysicsObj.h"
-#include "lib/mOptional.h"
-#include "Collision.h"
+#include "core/Constraint.h"
+#include "core/ExtendedPhysicsObj.h"
+#include "core/lib/mOptional.h"
+#include "core/Collision.h"
 #include <cmath>
+
+wCstManager* Constraint::cstManager = nullptr;
+
+
+
 void ContactConstraint::update()
 {
     switch (cstState)
@@ -15,19 +20,19 @@ void ContactConstraint::update()
         {
         case 0:
             // Error
-        case 1:
+        case 1:{
             MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
             if (!pt1->isSleep() && normal.dot(pt1->getVelocity()) < 0.0)
-                cstState = ConstraintState::Seperating;
-        case 2:
+                cstState = ConstraintState::Seperating;}
+        case 2:{
             MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
             if (!pt2->isSleep() && normal.dot(pt2->getVelocity()) > 0.0)
-                cstState = ConstraintState::Seperating;
-        case 3:
+                cstState = ConstraintState::Seperating;}
+        case 3:{
             MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
             MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
             if (!(pt1->isSleep() && pt2->isSleep()) && (normal.dot(pt1->getVelocity() - pt2->getVelocity()) < 0.0))
-                cstState = ConstraintState::Seperating;
+                cstState = ConstraintState::Seperating;}
         }
         break;
     case ConstraintState::Seperating:
@@ -42,18 +47,24 @@ void ContactConstraint::update()
             case 0:
                 // Error
             case 1:
+                {
                 MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
                 if (!pt1->isSleep() && normal.dot(pt1->getVelocity()) > 0.0)
                     cstState = ConstraintState::OnGoing;
+                }
             case 2:
+                {
                 MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
                 if (!pt2->isSleep() && normal.dot(pt2->getVelocity()) < 0.0)
                     cstState = ConstraintState::OnGoing;
+                }
             case 3:
+                {
                 MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
                 MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
                 if (!(pt1->isSleep() && pt2->isSleep()) && (normal.dot(pt1->getVelocity() - pt2->getVelocity()) > 0.0))
                     cstState = ConstraintState::OnGoing;
+                }
             }
         }
         break;
@@ -139,34 +150,6 @@ void PhysicsContactConstraint::solve_p()
     }
 }
 
-template <typename... cstTypes>
-inline void ConstraintManager<cstTypes...>::checkAndUpdate(EntityObj *ett1p, EntityObj *ett2p)
-{
-    switch (whatCollide(*ett1p, *ett2p))
-    {
-    case CollisionType::NoCollision:
-        break;
-    case CollisionType::NormalCollision:
-        if (isOuterIntersects(*ett1p, *ett2p) && cstGraph->containsEdge(ett1p, ett2p) && !(ett1p->isSleep() && ett2p->isSleep()))
-        {
-            mOptional<clsn::CollisionLocal> cl = isReallyIntersects(*ett1p, *ett2p);
-            if (cl)
-            {
-                NormalContactConstraint::newConstraint(*this, ett1p, ett2p, std::move(cl->t1cp), std::move(cl->t2cp), std::move(cl->normal));
-            }
-        }
-    case CollisionType::PhysicsCollision:
-        if (isOuterIntersects(*ett1p, *ett2p) && cstGraph->containsEdge(ett1p, ett2p) && !(ett1p->isSleep() && ett2p->isSleep()))
-        {
-            mOptional<clsn::CollisionLocal> cl = isReallyIntersects(*ett1p, *ett2p);
-            if (cl)
-            {
-                PhysicsContactConstraint::newConstraint(*this, ett1p, ett2p, std::move(cl->t1cp), std::move(cl->t2cp), std::move(cl->normal));
-            }
-        }
-    }
-}
-
 void SolveChain::updateAll()
 {
     Constraint *pt = head;
@@ -177,57 +160,18 @@ void SolveChain::updateAll()
     }
 }
 
-template <typename... cstTypes>
-void ConstraintManager<cstTypes...>::integrateAll()
-{
-    while (!toIntegrate.empty())
-    {
-        toIntegrate.top()->Integrate(1);
-        toIntegrate.pop();
-    }
-}
-
-template <typename... cstTypes>
-void ConstraintManager<cstTypes...>::clear()
-{
-    cstAllocManager.clear();
-    for (auto solver_p : chains)
-    {
-        delete solver_p;
-    }
-    toIntegrate.clear();
-}
-
-template <typename... cstTypes>
-void ConstraintManager<cstTypes...>::solveAll()
-{
-    for (auto solver_p : chains)
-    {
-        solver_p->solveAll();
-    }
-}
-
-template <typename... cstTypes>
-void ConstraintManager<cstTypes...>::updateAll()
-{
-    for (auto solver_p : chains)
-    {
-        solver_p->updateAll();
-    }
-}
-
 SolveChain::~SolveChain()
 {
     Constraint *pt = head;
     while (pt)
     {
         Constraint *next = pt->next;
-        delete pt;
+        pt -> release();
         pt = next;
     }
 }
 
-void NormalSolver::solveAll()
+void mNormalSolver::solveAll()
 {
     Constraint *pt = head;
     while (pt)
@@ -237,7 +181,7 @@ void NormalSolver::solveAll()
     }
 }
 
-void VelAndPosSolver::solveAll()
+void mVelAndPosSolver::solveAll()
 {
     {
         Constraint *pt = head;

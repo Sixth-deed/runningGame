@@ -1,4 +1,4 @@
-#include "ExtendedPhysicsObj.h"
+#include "core/ExtendedPhysicsObj.h"
 
 /**
  * Calculates the inertia of a shape based on its mass and geometry.

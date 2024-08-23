@@ -2,6 +2,7 @@
 #define MOptional_H
 #include <stdexcept>
 #include <utility> // For std::move
+#include <vector>
 
 template <typename T>
 class mOptional {
@@ -14,7 +15,6 @@ public:
     mOptional(const T& value) : has_value_(true), value_(value) {}
 
     mOptional(T&& value) : has_value_(true), value_(std::move(value)) {}
-
     // 拷贝构造函数
     mOptional(const mOptional& other) : has_value_(other.has_value_) {
         if (has_value_) {
