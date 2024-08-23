@@ -1,25 +1,26 @@
-#include "Collision.h"
+#include "core/Collision.h"
 #include <cfloat>
 #include <cmath>
 #include <unordered_set>
 #include <utility>
 #include <execution>
+#include <vector>
 
 using namespace clsn;
 gMath::Projection CollisionBox::projectTo(const tVector &axis) const
 {
     switch (vectors.size())
     {
-    case 1:
+    case 1:{
         const tVector r = axis * radius();
-        return gMath::Projection(-radius(), r.reverse(), radius(), std::move(r));
-    case 2:
+        return gMath::Projection(-radius(), r.reverse(), radius(), std::move(r));}
+    case 2:{
         double t = vectors[0].dot(axis);
         const tVector v = axis * t;
         if (t > 0.0)
             return gMath::Projection(-t, v.reverse(), t, std::move(v));
-        return gMath::Projection(t, std::move(v), -t, v.reverse());
-    default:
+        return gMath::Projection(t, std::move(v), -t, v.reverse());}
+    default:{
         // 考虑到是顺时针遍历顶点可以稍作优化
         double max = vectors[0].dot(axis), min;
         int i = 1;
@@ -53,7 +54,7 @@ gMath::Projection CollisionBox::projectTo(const tVector &axis) const
         }
 
         return gMath::Projection(min, tVector(*minpt), max, tVector(*maxpt));
-    }
+    }}
 }
 
 void clsn::CollisionBox::RotateTo(const Angle &angle)
@@ -63,13 +64,13 @@ void clsn::CollisionBox::RotateTo(const Angle &angle)
     case 1:
 
         return;
-    case 2:
+    case 2:{
         auto rotateAngle = angle - nAngle;
         vectors[0].rotate(rotateAngle);
         ns->at(0).rotate(rotateAngle);
         return;
-
-    case 3:
+        }
+    case 3:{
         auto rotateAngle = angle - nAngle;
         std::for_each(std::execution::par, vectors.begin(), vectors.end(), [&](tVector &vec)
                       { vec.rotate(rotateAngle); });
@@ -77,7 +78,7 @@ void clsn::CollisionBox::RotateTo(const Angle &angle)
         std::for_each(std::execution::par, ns->begin(), ns->end(), [&](tVector &vec)
                       {
                 vec.rotate(rotateAngle);
-                vec.unify(); });
+                vec.unify(); });}
     }
 }
 mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2)
@@ -378,7 +379,7 @@ mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, Collisi
     }
 }
 
-CollisionBox::CollisionBox(std::vector<tVector> *array, bool rotatable_ = false, const gMath::Angle &angle) : vectors(*array), vectors_p(array), ns(nullptr), nAngle(angle), rotatable(rotatable_)
+CollisionBox::CollisionBox(const std::vector<tVector> *array, bool rotatable_ , const gMath::Angle &angle) : vectors(std::move(*array)),vectors_p(&vectors), ns(nullptr), nAngle(angle), rotatable(rotatable_)
 {
 
     switch (vectors.size())
@@ -448,3 +449,75 @@ CollisionBox::CollisionBox(std::vector<tVector> *array, bool rotatable_ = false,
         }
     }
 }
+CollisionBox::CollisionBox(std::vector<tVector>&& array, bool rotatable_ , const Angle &angle )
+:vectors(std::move(array)),vectors_p(&vectors), ns(nullptr), nAngle(angle), rotatable(rotatable_)
+{
+
+    switch (vectors.size())
+    {
+    case 0:
+        // 抛出异常，不合法的碰撞箱构造
+        break;
+    // 圆
+    case 1:
+        b = l = -vectors[0].x;
+        t = r = vectors[0].x;
+
+        break;
+    // 线段
+    case 2:
+        if (rotatable)
+        {
+            double len = std::sqrt(vectors[0].sLen());
+            l = b = -len;
+            r = t = len;
+        }
+        else
+        {
+            l = vectors[0].x > 0 ? (r = vectors[0].x, -vectors[0].x) : (r = -vectors[0].x, vectors[0].x);
+            b = vectors[0].y > 0 ? (t = vectors[0].y, -vectors[0].y) : (t = -vectors[0].y, vectors[0].y);
+        }
+        ns = new std::vector<tVector>{vectors[0].normal_and_unify()};
+        break;
+    default:
+        if (rotatable)
+        {
+            std::unordered_set<tVector> tempSet;
+            double tempMaxLen = vectors[0].sLen();
+            tempSet.insert(vectors[0].normal_and_unify());
+            for (int i = 1; i < vectors.size(); i++)
+            {
+                tempMaxLen = std::max(vectors[i].sLen(), tempMaxLen);
+                tempSet.insert(vectors[i].normal_and_unify());
+            }
+            tempMaxLen = std::sqrt(tempMaxLen);
+            b = l = static_cast<axisV>(-tempMaxLen);
+            t = r = static_cast<axisV>(tempMaxLen);
+            ns = new std::vector<tVector>(tempSet.begin(), tempSet.end());
+            if (std::abs(angle.getDegrees()) > 1)
+            {
+                RotateTo(angle);
+            }
+        }
+        else
+        {
+            std::unordered_set<tVector> tempSet;
+            tempSet.insert(vectors[0].normal_and_unify());
+            double tl = vectors[0].x, tr = tl, tb = vectors[0].y, tt = tb;
+            for (auto vec : vectors)
+            {
+                tl = std::min(tl, vec.x);
+                tr = std::max(tr, vec.x);
+                tb = std::min(tb, vec.y);
+                tt = std::max(tt, vec.y);
+                tempSet.insert(vec.normal_and_unify());
+            }
+            ns = new std::vector<tVector>(tempSet.begin(), tempSet.end());
+            l = static_cast<axisV>(tl);
+            r = static_cast<axisV>(tr);
+            b = static_cast<axisV>(tb);
+            t = static_cast<axisV>(tt);
+        }
+    }
+}
+

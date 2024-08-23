@@ -6,7 +6,6 @@
 #include "lib/Gmath.h"
 #include "lib/ObjPool.h"
 #include "lib/idHandler.h"
-#include "lib/QuadTree.h"
 
 
 #define GRID_NEEDED
@@ -16,7 +15,7 @@
 class gObj {
     
 protected:
-
+    static idHandler *mIdHandler;
     //友元类
     template <typename U>
     friend class ObjPool;
@@ -28,7 +27,7 @@ protected:
     gMath::Angle angle;
     gObj(gMath::axisV x, gMath::axisV y, gMath::Angle angle_ = 0.0):crd(x,y), angle(angle_){}
     gObj(const gMath::Crdinate& cr,  gMath::Angle angle_ = 0.0):crd(cr), angle(angle_){}
-    gObj(): crd(0,0),id(idHandler::mainHandler().getNewID()),angle(0.0) {}
+    gObj(): crd(0,0),id(mIdHandler->getNewID()),angle(0.0) {}
     //用来记录是否被遍历与更新，除了ActObj，其他类固定为false
     bool isSleeping =false;
 public:
@@ -36,10 +35,12 @@ public:
     //用于将关于这个对象的有用的额外信息传往前端
     std::vector<std::string> flags;
     //获得一个对象
-    template <typename managerT>
+/*    template <typename managerT>
     static gObj& newObj(managerT &m,const gMath::Crdinate& crd, const gMath::Angle &angle_){
-        return basicObjInit<gObj>(m , crd, angle_);
-    }
+        gObj* pt = m.template acquire<gObj>();
+        initObj(pt,crd,angle_);
+        return *pt;
+    } */
     //初始化对象,子类应该重载
     static void initObj(gObj* pt, const gMath::Crdinate& crd , const gMath::Angle &angle_){
         pt->crd = crd;
@@ -48,6 +49,12 @@ public:
     const gMath::Crdinate& getCrd() const {
         return crd;
     }
+    gMath::axisV get_x() const{
+        return crd.get_x();
+    }
+    gMath::axisV get_y() const {
+        return crd.get_y();
+    }
     mID getID() const { return id; }
     void setCoordinate(gMath::Crdinate crd_){
         crd=crd_;
@@ -55,7 +62,7 @@ public:
     gMath::Angle getAngle() const {
         return angle;
     }
-    gMath::Angle setAngle(const gMath::Angle& angle_) {
+    void setAngle(const gMath::Angle& angle_) {
         angle = angle_;
 
     }
@@ -64,9 +71,10 @@ public:
     static const bool isEntity = false;
     bool isSleep(){return isSleeping;}
     void setSleep(){isSleeping = true;}
+    
+    static void setIDhandler(idHandler*const pt) {mIdHandler = pt;}
 
-
-
+    /*
     //此处的SendPackType类型需要实现，Container选择合适的容器即可
     SendPackType send() {
         //to be finished
@@ -85,7 +93,8 @@ public:
     //另一种可选的发送方式
     void send(SendPackContainer& container){
         container.push((SendPackType)...); 
-    }
+    }*/
+    virtual ~gObj(){}
 };
 template <typename managerT, typename gObjType>
 inline gObjType& basicObjInit(managerT& m,const gMath::Crdinate& crd = gMath::Crdinate(0, 0 ), const gMath::Angle& angle_ = 0.0){

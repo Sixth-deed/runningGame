@@ -38,8 +38,14 @@ enum SolverType{
     SolverTypeCnt
 };
 //SolveChain的派生类
-class NormalSolver;
-class VelAndPosSolver;
+class mNormalSolver;
+
+class mVelAndPosSolver;
+
+class Constraint;
+class ContactConstraint;
+class NormalContactConstraint;
+class PhysicsContactConstraint;
 
 
 template <typename... cstTypes>
@@ -54,20 +60,17 @@ protected:
     SolveChain* chains[(size_t)SolverType::SolverTypeCnt];
 public:
     template <typename cstType, typename... Args>
-    static cstType *newConstraint(Args... args);
+    cstType *newConstraint(Args... args);
     template <typename cstType>
     void releaseConstraint(cstType *cst);
     inline void integrateAll();
-    ConstraintManager() :toIntegrate(), cstAllocManager({5 , 5}), curHead(nullptr), cstGraph() {
-        chains[(size_t)SolverType::NormalSolver] = new NormalSolver(this);
-        chains[(size_t)SolverType::VelAndPosSolver] = new VelAndPosSolver(this);
-    }
+    ConstraintManager(); 
     ConstraintManager(ObjectManager<cstTypes...> &cstAllocManager_, gMath::Graph <EntityObj*>&& cstGraph_) : cstAllocManager(cstAllocManager_), cstGraph(cstGraph_) {}
     void addObjToIntegrateList(PhysicsObj *obj);
     void checkAndUpdate(EntityObj* ett1p, EntityObj* ett2p);
     void clear();
 
-    bool ConstarintExist(EntityObj* ett1, EntityObj* ett2){return cstGragh->containsEdge(ett1, ett2);}   
+    bool ConstarintExist(EntityObj* ett1, EntityObj* ett2){return cstGraph.containsEdge(ett1, ett2);}   
 
     ~ConstraintManager() { clear(); }
 
@@ -75,11 +78,10 @@ public:
     void updateAll();
 };
 
-class wCstManager : public ConstraintManager<NormalContactConstraint, PhysicsContactConstraint>
+class wCstManager : public ConstraintManager<ContactConstraint ,NormalContactConstraint, PhysicsContactConstraint>
 {
     public :
-    wCstManager() : ConstraintManager<NormalContactConstraint, PhysicsContactConstraint>() {}
-};
+    wCstManager(); };
 
 
 ///////////////////
@@ -93,8 +95,10 @@ protected:
     //友元类
     template <typename U>
     friend class ObjPool;
-
-    friend class wCstManager;
+    template <typename... TS>
+    friend class ObjectManager;
+    template <typename... Ts>
+    friend class ConstraintManager;
     friend class SolveChain;
 
     static const ConstraintType cstType;
@@ -107,7 +111,6 @@ protected:
     // 直接在双向链表中管理，利于动态分配
     Constraint *next = nullptr;
     Constraint *prev = nullptr;
-    Constraint() = default; 
     Constraint(EntityObj *ett1_, EntityObj *ett2_) : ett1(ett1_), ett2(ett2_), moveableFlag((ett1->movable ? 1 : 0) + (ett2->movable ? 2 : 0)) {}
 
     static wCstManager* cstManager;
@@ -116,8 +119,9 @@ public:
     virtual void solve() = 0;
     virtual void update() = 0;
     
-
-    virtual void release() ;
+    Constraint() = default; 
+    virtual ~Constraint() = default;
+    virtual void release() = 0 ;
 
     ConstraintType getType() const { return cstType; }
     ConstraintState getState() const { return cstState; }
@@ -125,9 +129,9 @@ public:
 
     // 应当提供这样成对的方法，后者只比前者多manager参数
     virtual void initializeConstraint( EntityObj *const ett1_, EntityObj *const ett2_);
-    static Constraint *newConstraint(wCstManager &cstManager, EntityObj *ett1_, EntityObj *ett2_);
     Constraint* getNext()    { return next; }
     Constraint* getPrev()    { return prev; }
+    
 };
 
 
@@ -141,13 +145,15 @@ protected:
     // 接触法线
     // 这里的接触法线一定是由ett2指向ett1
     gMath::tVector normal;
-    ContactConstraint() = default;
 public:
+
+    ContactConstraint() = default;
+    ~ContactConstraint() = default;
     ContactConstraint(EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&toCp1_, const gMath::tVector &&toCp2_, const gMath::tVector &&normal_) : Constraint(ett1_, ett2_), toCp1(toCp1_), toCp2(toCp2_), normal(normal_) {}
     void update() override;
     void solve() override;
     virtual bool seperated();
-
+    void release() override{}
     void initializeConstraint(EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&toCp1_, const gMath::tVector &&toCp2_, const gMath::tVector &&normal_);
     static ContactConstraint* newConstraint(wCstManager &cstManager, EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&toCp1_, const gMath::tVector &&toCp2_, const gMath::tVector &&normal_);
 };
@@ -157,12 +163,14 @@ mOptional<clsn::CollisionLocal> isReallyIntersects(EntityObj &b1, EntityObj &b2)
 
 class NormalContactConstraint : public ContactConstraint
 {
-private:
-    NormalContactConstraint() = default;
 public:
+
+    NormalContactConstraint() = default;
+    ~NormalContactConstraint() = default;
     NormalContactConstraint(EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&t1cp_, const gMath::tVector &&t2cp_, const gMath::tVector &&normal_) : ContactConstraint(ett1_, ett2_, std::move(t1cp_), std::move(t2cp_), std::move(normal_)) {}
     void initializeConstraint(EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&t1cp_, const gMath::tVector &&t2cp_, const gMath::tVector &&normal_);
-    NormalContactConstraint *newConstraint(wCstManager &cstManager, EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&t1cp_, const gMath::tVector &&t2cp_, const gMath::tVector &&normal_);
+    static NormalContactConstraint *newConstraint(wCstManager &cstManager, EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&t1cp_, const gMath::tVector &&t2cp_, const gMath::tVector &&normal_);
+    void release();
 };
 
 class PhysicsContactConstraint : public ContactConstraint
@@ -184,12 +192,15 @@ private:
     static const double posBiasFactor;
     static const double maxPenetraintion;
 public:
+    PhysicsContactConstraint() = default;
+    ~PhysicsContactConstraint() = default;
     void initializeConstraint(EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&t1cp_, const gMath::tVector &&t2cp_, const gMath::tVector &&normal_);
-    PhysicsContactConstraint* newConstraint(wCstManager &cstManager,EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&t1cp_, const gMath::tVector &&t2cp_, const gMath::tVector &&normal_);
+    static PhysicsContactConstraint* newConstraint(wCstManager &cstManager,EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&t1cp_, const gMath::tVector &&t2cp_, const gMath::tVector &&normal_);
     PhysicsContactConstraint(EntityObj *ett1_, EntityObj *ett2_, const gMath::tVector &&t1cp_, const gMath::tVector &&t2cp_, const gMath::tVector &&normal_);
     void solve_v();
     void solve_p();
     void init();
+    void release();
     PhysicsContactConstraint* getNext() { return reinterpret_cast<PhysicsContactConstraint *>(next); }
     PhysicsContactConstraint* getPrev() { return reinterpret_cast<PhysicsContactConstraint *>(prev); }
 };
@@ -202,22 +213,23 @@ public:
     virtual void updateAll(); 
     void insert(Constraint* c);
     SolveChain(wCstManager*const manager):cstManager(manager){}
-    ~SolveChain();
+    virtual ~SolveChain();
 protected:
     wCstManager *const cstManager = nullptr;
     Constraint* head = nullptr;
 };
-class NormalSolver: public SolveChain{
+class mNormalSolver: public SolveChain{
 public:
-    NormalSolver(wCstManager*const manager):SolveChain(manager){}
+    mNormalSolver(wCstManager*const manager):SolveChain(manager){}
     void solveAll() override;
 };
-class VelAndPosSolver : public SolveChain{
+
+class mVelAndPosSolver : public SolveChain{
 private:
     static const int vIterations;
     static const int pIterations;
 public :
-    VelAndPosSolver(wCstManager*const manager):SolveChain(manager){}
+    mVelAndPosSolver(wCstManager*const manager):SolveChain(manager){}
     void solveAll() override;
 };
 ////////////////////
@@ -228,10 +240,18 @@ inline void ContactConstraint::solve()
     ett1->CollisionAct(*ett2);
     ett2->CollisionAct(*ett1);
 }
-inline void Constraint::release()
+inline void NormalContactConstraint::release()
 {
+    
     cstManager->releaseConstraint(this);
 }
+
+inline void PhysicsContactConstraint::release()
+{
+    
+    cstManager->releaseConstraint(this);
+}
+
 inline void Constraint::initializeConstraint(EntityObj *const ett1_, EntityObj *const ett2_)
 {
     ett1 = ett1_;
@@ -263,7 +283,7 @@ inline void ConstraintManager<cstTypes...>::releaseConstraint(cstType *cst)
         curHead = cst->next;
         cst->next->prev = nullptr;
     }
-    cstGraph->removeEdge(cst->ett1, cst->ett2);
+    cstGraph.removeEdge(cst->ett1, cst->ett2);
     cstAllocManager.template release<cstType>(cst);
 }
 
@@ -280,21 +300,17 @@ template <typename cstType, typename... Args>
 inline cstType *ConstraintManager<cstTypes...>::newConstraint(Args... args)
 {
     cstType *pt = cstAllocManager.template acquire<cstType>();
-    pt->initializeConstraint(args...);
+    pt->initializeConstraint(std::forward<Args>(args)...);
 
-    Constraint *cpt const = reinterpret_cast<Constraint *>(pt);
+    Constraint *const cpt = reinterpret_cast<Constraint *>(pt);
     cpt->next = curHead;
     curHead = cpt;
 
-    cstGraph->addEdge(pt->ett1, pt->ett2);
+    cstGraph.addEdge(pt->ett1, pt->ett2);
     return pt;
 }
 
 
-inline Constraint *Constraint::newConstraint(wCstManager &cstManager, EntityObj *ett1_, EntityObj *ett2_)
-{
-    return cstManager.template newConstraint<Constraint>(ett1_, ett2_);
-}
 
 inline void PhysicsContactConstraint::initializeConstraint(EntityObj *const ett1_, EntityObj *const ett2_, const gMath::tVector &&t1cp_, const gMath::tVector &&t2cp_, const gMath::tVector &&normal_)
 {
@@ -339,10 +355,94 @@ inline NormalContactConstraint* NormalContactConstraint::newConstraint(wCstManag
     return cstManager.template newConstraint<NormalContactConstraint>(ett1_, ett2_, std::move(t1cp_), std::move(t2cp_), std::move(normal_));
 }
 
-void SolveChain::insert(Constraint *c)
+inline void SolveChain::insert(Constraint *c)
 {
     c->next = head;
     head ->prev = c;
     head = c;
 }
+
+template <typename... Ts>
+inline ConstraintManager<Ts...>::ConstraintManager() :toIntegrate(), cstAllocManager({5 , 5}), curHead(nullptr), cstGraph() {
+    }
+
+inline wCstManager::wCstManager() : ConstraintManager<ContactConstraint,NormalContactConstraint, PhysicsContactConstraint>() {
+
+        chains[(size_t)SolverType::NormalSolver] = static_cast<SolveChain*>(new mNormalSolver(this));
+        chains[(size_t)SolverType::VelAndPosSolver] = static_cast<SolveChain*>(new mVelAndPosSolver(this));
+}
+
+//////////////////////
+//template functions//
+/////////////////////
+template <typename... cstTypes>
+inline void ConstraintManager<cstTypes...>::checkAndUpdate(EntityObj *ett1p, EntityObj *ett2p)
+{
+    switch (whatCollide(*ett1p, *ett2p))
+    {
+    case CollisionType::NoCollision:
+        break;
+    case CollisionType::NormalCollision:
+        if (isOuterIntersects(*ett1p, *ett2p) && cstGraph.containsEdge(ett1p, ett2p) && !(ett1p->isSleep() && ett2p->isSleep()))
+        {
+            mOptional<clsn::CollisionLocal> cl = isReallyIntersects(*ett1p, *ett2p);
+            if (cl)
+            {
+                NormalContactConstraint::newConstraint(*reinterpret_cast<wCstManager*>(this), ett1p, ett2p, std::move(cl.value().toBody1_cp), std::move(cl.value().toBody2_cp), std::move(cl.value().normal));
+            }
+        }
+    case CollisionType::PhysicsCollision:
+        if (isOuterIntersects(*ett1p, *ett2p) && cstGraph.containsEdge(ett1p, ett2p) && !(ett1p->isSleep() && ett2p->isSleep()))
+        {
+            mOptional<clsn::CollisionLocal> cl = isReallyIntersects(*ett1p, *ett2p);
+            if (cl)
+            {
+                PhysicsContactConstraint::newConstraint(*reinterpret_cast<wCstManager*>(this), ett1p, ett2p, std::move(cl.value().toBody1_cp), std::move(cl.value().toBody2_cp), std::move(cl.value().normal));
+            }
+        }
+    }
+}
+
+template <typename... cstTypes>
+void ConstraintManager<cstTypes...>::integrateAll()
+{
+    while (!toIntegrate.empty())
+    {
+        toIntegrate.top()->Integrate(1);
+        toIntegrate.pop();
+    }
+}
+
+template <typename... cstTypes>
+void ConstraintManager<cstTypes...>::clear()
+{
+    cstAllocManager.clear();
+    for (auto solver_p : chains)
+    {
+        delete solver_p;
+    }
+    
+}
+
+template <typename... cstTypes>
+void ConstraintManager<cstTypes...>::solveAll()
+{
+    for (auto solver_p : chains)
+    {
+        solver_p->solveAll();
+    }
+}
+
+template <typename... cstTypes>
+void ConstraintManager<cstTypes...>::updateAll()
+{
+    for (auto solver_p : chains)
+    {
+        solver_p->updateAll();
+    }
+}
+
+
+
+
 #endif
