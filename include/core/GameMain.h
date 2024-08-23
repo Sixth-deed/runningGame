@@ -16,11 +16,9 @@
 #include <thread>
 #include <chrono>
 #include <unordered_set>
-<<<<<<< HEAD:code/core/GameMain.cpp
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 
-=======
 
 struct gameLoopParam
 {
@@ -105,7 +103,6 @@ public:
     }
     void GameLoop(gameLoopParam &param);
 };
->>>>>>> 67a7328 (再次更改文件结构，提供了可编译的示例):include/core/GameMain.h
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::deleteActiveGridsRef()
 {
@@ -278,10 +275,7 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop(gameLoopParam &param
         std::this_thread::sleep_for(clocksPerFrame - elasped);
     GameLoop(param);
 }
-<<<<<<< HEAD:code/core/GameMain.cpp
 
 
 //可能用vector和list可以实现
-=======
 #endif
->>>>>>> 67a7328 (再次更改文件结构，提供了可编译的示例):include/core/GameMain.h
