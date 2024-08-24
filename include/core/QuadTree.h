@@ -12,11 +12,9 @@
 // 方格类，用于四叉树优化
 template <typename gObjType>
 class Grid;
-//管理方格的辅助类
+// 管理方格的辅助类
 template <typename gObjType>
 class GridManager;
-
-
 
 // 用于区分活跃部分和不活跃部分
 class ActiveRectangle;
@@ -62,7 +60,7 @@ private:
     // 辅助函数, 检查传入的pObj与this的位置关系, 递归地对子树调用传入的方法method
     // pObj用来标定Obj的位置
     bool recursionForInnerGrid(gObjType *pObj, bool (Grid<gObjType>::*method)(Args...), Args... args);
-    void setParent(Grid<gObjType>* p) { parentGrid = p; }
+    void setParent(Grid<gObjType> *p) { parentGrid = p; }
 
     // 判断pobj指向的对象是否在方格内部
     bool Inside(const gObj *pobj) const
@@ -72,10 +70,8 @@ private:
     inline void reInsert(gObjType *pt);
 
 public:
-
     template <typename T>
     friend class GridManager;
-
 
     // 通过id获得对象的引用
     inline gObjType &getObj(mID objID) const;
@@ -92,7 +88,7 @@ public:
     */
     // 必须从细分类到粗分类调用
     // 返回当前仍可能需要更新的变量
-    std::unordered_set<MoveObj *> &frameUpDate(std::unordered_set<MoveObj *> &toUpdate, std::unordered_set<MoveObj*> &toRelease);
+    std::unordered_set<MoveObj *> &frameUpDate(std::unordered_set<MoveObj *> &toUpdate, std::unordered_set<MoveObj *> &toRelease);
     // 检测方格是否要分裂或者重新合并,如果需要, 执行相应操作
     void checkState();
     // 创建新根Grid
@@ -107,92 +103,107 @@ public:
     // l,r,t,b分别为左右上下四个边界的坐标值
     static Grid<gObjType> *newGrid(gMath::axisV l, gMath::axisV r, gMath::axisV t, gMath::axisV b, Grid<gObjType> *parentGrid);
     template <typename FuncType>
-    void forEachInGrid(FuncType f){
-        std::for_each(mManager->getGridReferences(gridID).begin(),mManager->getGridReferences(gridID).end(),[f](const std::pair<mID, gObjType*>& pr){ f(pr.second); });
+    void forEachInGrid(FuncType f)
+    {
+        std::for_each(mManager->getGridReferences(gridID).begin(), mManager->getGridReferences(gridID).end(), [f](const std::pair<mID, gObjType *> &pr)
+                      { f(pr.second); });
     }
-    bool is_divided(){
+    bool is_divided()
+    {
         return divided;
     }
-    Grid<gObjType> *LeftTop(){
+    Grid<gObjType> *LeftTop()
+    {
         return lt;
     }
-    Grid<gObjType> *RightTop(){
+    Grid<gObjType> *RightTop()
+    {
         return rt;
     }
-    Grid<gObjType> *LeftBottom(){
+    Grid<gObjType> *LeftBottom()
+    {
         return lb;
     }
-    Grid<gObjType> *RightBottom(){
+    Grid<gObjType> *RightBottom()
+    {
         return rb;
     }
-    int count(mID objId){
+    int count(mID objId)
+    {
         return mManager->count(gridID, objId);
     }
-    const gMath::mRectangle &get_rect() const{
+    const gMath::mRectangle &get_rect() const
+    {
         return rect;
     }
+    static void setGridManager(GridManager<gObjType> *m) { mManager = m; }
 };
+
+template <>
+bool Grid<EntityObj>::Inside(const gObj *pt) const;
+
 template <typename gObjType>
 class GridManager
+{
+private:
+    std::unordered_map<mID, std::unordered_map<mID, gObjType *>> referencePool;
+
+    std::vector<Grid<gObjType> *> gridPool;
+
+public:
+    // 创建GirdManager
+    // rfPoolbuckets -- 初始时哈希表桶的数量
+    // gridPoolInitialVolume -- 初始预估需要的Grid的数量
+
+    /**
+     * Constructs a GridManager instance with the specified initial size.
+     *
+     * @param initialSize A tuple containing the initial size of the reference pool and the grid pool.
+     *
+     * @note The reference pool size is doubled to accommodate for potential growth.
+     */
+    GridManager(const std::tuple<int, int> &initialSize) : referencePool(std::get<0>(initialSize) * 2), gridPool(std::get<1>(initialSize))
     {
-    private:
-        std::unordered_map<mID, std::unordered_map<mID, gObjType *>> referencePool;
-
-        std::vector<Grid<gObjType> *> gridPool;
-
-    public:
-        // 创建GirdManager
-        // rfPoolbuckets -- 初始时哈希表桶的数量
-        // gridPoolInitialVolume -- 初始预估需要的Grid的数量
-        GridManager(int rfPoolbuckets, int gridPoolInitialVolume) : referencePool(rfPoolbuckets), gridPool(gridPoolInitialVolume, new Grid<gObjType>()) {
-            Grid<gObjType>::mManager = this;
+        const int gpSize = std::get<1>(initialSize);
+        for (int i = 0 ; i < gpSize; i++){
+            gridPool[i] = new Grid<gObjType>();
         }
-        /**
-         * Constructs a GridManager instance with the specified initial size.
-         *
-         * @param initialSize A tuple containing the initial size of the reference pool and the grid pool.
-         *
-         * @note The reference pool size is doubled to accommodate for potential growth.
-         */
-        GridManager(const std::tuple<int, int> &initialSize) : referencePool(std::get<0>(initialSize)*2), gridPool(std::get<1>(initialSize)) {
-            Grid<gObjType>::mManager = this;
-        }
-        // 获得引用
-        gObjType *get(mID poolId, mID objId) const { return referencePool.at(poolId).at(objId); }
-        // 插入到引用池
-        void insert(mID poolId, gObjType *pt) { referencePool[poolId][pt->getID()] = pt; }
-        // 清除code对应的引用
-        void erase(mID poolId, mID objId) { referencePool[poolId].erase(objId); }
-        // 释放内存用
-        void clear()
-        {
-            referencePool.clear();
-            gridPool.clear();
-        }
-        int count(mID poolid, mID objId){
-            return referencePool[poolid].count(objId);
-        }
-        // 请求Grid
-        Grid<gObjType> *acquireGrid();
-        // 销毁Grid
-        void removeGrid(Grid<gObjType> *grid);
-        ~GridManager() { clear(); }
-        std::unordered_map<mID, gObjType *>& getGridReferences(mID id)
-        {
-            return referencePool[id];
-        }
-    };
+    }
+    // 获得引用
+    gObjType *get(mID poolId, mID objId) const { return referencePool.at(poolId).at(objId); }
+    // 插入到引用池
+    void insert(mID poolId, gObjType *pt) { referencePool[poolId][pt->getID()] = pt; }
+    // 清除code对应的引用
+    void erase(mID poolId, mID objId) { referencePool[poolId].erase(objId); }
+    // 释放内存用
+    void clear()
+    {
+        referencePool.clear();
+        gridPool.clear();
+    }
+    int count(mID poolid, mID objId)
+    {
+        return referencePool[poolid].count(objId);
+    }
+    // 请求Grid
+    Grid<gObjType> *acquireGrid();
+    // 销毁Grid
+    void removeGrid(Grid<gObjType> *grid);
+    ~GridManager() { clear(); }
+    std::unordered_map<mID, gObjType *> &getGridReferences(mID id)
+    {
+        return referencePool[id];
+    }
+};
 
 template <typename T>
-GridManager<T>* Grid<T>::mManager = nullptr;
+GridManager<T> *Grid<T>::mManager = nullptr;
 
 template <typename T>
-const unsigned int Grid<T>::threshold = 50 ;
+const unsigned int Grid<T>::threshold = 50;
 
-template<>
+template <>
 const unsigned int Grid<gObj>::threshold;
-
-
 
 template <typename T>
 inline void GridManager<T>::removeGrid(Grid<T> *grid)
@@ -207,13 +218,11 @@ inline bool Grid<gObjType>::erase(mID objID)
     return erase(&getObj(objID));
 }
 
-
 template <typename T>
 inline T &Grid<T>::getObj(mID objID) const
 {
-    return *( (T*) ( (*mManager).get(gridID,objID) ) );
+    return *((T *)((*mManager).get(gridID, objID)));
 }
-
 
 template <typename gObjType>
 inline void Grid<gObjType>::reInsert(gObjType *pt)
@@ -221,15 +230,16 @@ inline void Grid<gObjType>::reInsert(gObjType *pt)
     root->insert(pt);
 }
 
-    template <typename gObjType>
+template <typename gObjType>
 void Grid<gObjType>::divideSelf()
 {
-    gMath::axisV avLR = (rect.l + rect.r) / 2 , avTB=(rect.t+rect.b)/2;
-    lt = newGrid(rect.l ,avLR , rect.t, avTB ,this);
+    gMath::axisV avLR = (rect.l + rect.r) / 2, avTB = (rect.t + rect.b) / 2;
+    lt = newGrid(rect.l, avLR, rect.t, avTB, this);
     rt = newGrid(avLR, rect.r, rect.t, avTB, this);
     lb = newGrid(rect.l, avLR, avTB, rect.b, this);
     rb = newGrid(avLR, rect.r, avTB, rect.b, this);
-    for (auto pObj : this->mManager->getGridReferences(this->gridID)){
+    for (auto pObj : this->mManager->getGridReferences(this->gridID))
+    {
         recursionForInnerGrid(pObj.second, &Grid<gObjType>::insert, pObj.second);
     }
     {
@@ -240,7 +250,7 @@ void Grid<gObjType>::divideSelf()
     }
 }
 
-    template <typename gObjType>
+template <typename gObjType>
 void Grid<gObjType>::collectSelf()
 {
     divided = false;
@@ -254,180 +264,190 @@ void Grid<gObjType>::collectSelf()
     mManager->removeGrid(rb);
 }
 
-    template <typename gObjType>
-void Grid<gObjType>::collectFrom(const Grid<gObjType>* pGrid)
+template <typename gObjType>
+void Grid<gObjType>::collectFrom(const Grid<gObjType> *pGrid)
 {
-    for (auto pObj : this->mManager->getGridReferences(pGrid->gridID)){
+    for (auto pObj : this->mManager->getGridReferences(pGrid->gridID))
+    {
         insert(pObj.second);
     }
 }
 
-    template <typename gObjType>
-std::unordered_set<MoveObj*>& Grid<gObjType>::frameUpDate(std::unordered_set<MoveObj*> &toUpdate, std::unordered_set<MoveObj*>& toRelease)
+template <typename gObjType>
+std::unordered_set<MoveObj *> &Grid<gObjType>::frameUpDate(std::unordered_set<MoveObj *> &toUpdate, std::unordered_set<MoveObj *> &toRelease)
 {
 
-    for (auto pt : toUpdate){
-        if (count(pt->getID())){
+    for (auto pt : toUpdate)
+    {
+        if (count(pt->getID()))
+        {
             if (Inside(pt))
                 toUpdate.erase(pt);
-            else{
-                bool insideFlag=false;
-                for (auto& prt : ActiveRectangle::rects){
-                    if (prt->Inside(pt->getCrd())){
+            else
+            {
+                bool insideFlag = false;
+                for (auto &prt : ActiveRectangle::rects)
+                {
+                    if (prt->Inside(pt->getCrd()))
+                    {
                         insideFlag = true;
                         break;
                     }
                 }
                 if (insideFlag)
-                    reInsert(reinterpret_cast<gObjType*>(pt));
-                else 
-                    //MoveObj的方法
-                    if (pt->onOffTackler()){
+                    reInsert(reinterpret_cast<gObjType *>(pt));
+                else
+                    // MoveObj的方法
+                    if (pt->onOffTackler())
+                    {
                         erase(pt->getID());
                         toUpdate.erase(pt);
-                        toRelease.insert(pt);                        
+                        toRelease.insert(pt);
                     }
             }
         }
-
     }
     return toUpdate;
 }
 
-    template <typename gObjType>
+template <typename gObjType>
 void Grid<gObjType>::checkState()
 {
-    if (divided){
-        if (this->mManager->getGridReferences(this->gridID).size() <= this->threshold){
+    if (divided)
+    {
+        if (this->mManager->getGridReferences(this->gridID).size() <= this->threshold)
+        {
             collectSelf();
         }
     }
-    else{
-        if (this->mManager->getGridReferences(this->gridID).size() > this->threshold){
+    else
+    {
+        if (this->mManager->getGridReferences(this->gridID).size() > this->threshold)
+        {
             divideSelf();
         }
     }
 }
 
-
-
-
-    template <typename T>
-Grid<T>::Grid(gMath::axisV l_, gMath::axisV r_, gMath::axisV t_, gMath::axisV b_, const std::vector<T *> &v) : rect(l_,r_,t_,b_)
+template <typename T>
+Grid<T>::Grid(gMath::axisV l_, gMath::axisV r_, gMath::axisV t_, gMath::axisV b_, const std::vector<T *> &v) : rect(l_, r_, t_, b_)
 {
-    //将vector中的对象向引用池中绑定
-    for (T* pt : v){
+    // 将vector中的对象向引用池中绑定
+    for (T *pt : v)
+    {
         insert(pt);
     }
 }
 template <typename T>
 idHandler Grid<T>::gIDhdr;
 
-
-
-
-    template <typename gObjType>
+template <typename gObjType>
 bool Grid<gObjType>::insert(gObjType *pObj)
 {
 
-    if (divided){
-        return recursionForInnerGrid( pObj , &Grid<gObjType>::insert , pObj);
+    if (divided)
+    {
+        return recursionForInnerGrid(pObj, &Grid<gObjType>::insert, pObj);
     }
-    else{
-        mManager->insert(gridID , pObj);
+    else
+    {
+        mManager->insert(gridID, pObj);
         return true;
     }
 }
 
-
-
-    template <typename gObjType>
+template <typename gObjType>
 bool Grid<gObjType>::erase(gObjType *pObj)
 {
 
-    if (divided){
-        return recursionForInnerGrid( pObj , &Grid<gObjType>::insert , pObj);
+    if (divided)
+    {
+        return recursionForInnerGrid(pObj, &Grid<gObjType>::insert, pObj);
     }
-    else{
-        mManager->erase(gridID,pObj->getID());
+    else
+    {
+        mManager->erase(gridID, pObj->getID());
         return true;
     }
 }
 
-    template <typename gObjType>
+template <typename gObjType>
 Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::axisV t, gMath::axisV b, const std::vector<gObjType *> &v)
 {
     auto pObj = mManager->acquireGrid();
-    pObj->rect.l=l,pObj->rect.r=r,pObj->rect.t=t,pObj->rect.b=b;
-    for (auto pt : v){
+    pObj->rect.l = l, pObj->rect.r = r, pObj->rect.t = t, pObj->rect.b = b;
+    for (auto pt : v)
+    {
         mManager->insert(pObj->gridID, pt);
     }
     return pObj;
 }
 
-    template <typename gObjType>
+template <typename gObjType>
 Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::axisV t, gMath::axisV b)
 {
     auto pObj = mManager->acquireGrid();
-    pObj->rect.l=l,pObj->rect.r=r,pObj->rect.t=t,pObj->rect.b=b;
-    pObj->parentGrid = nullptr , pObj->root = pObj;
+    pObj->rect.l = l, pObj->rect.r = r, pObj->rect.t = t, pObj->rect.b = b;
+    pObj->parentGrid = nullptr, pObj->root = pObj;
     return pObj;
 }
-    template <typename gObjType>
-Grid<gObjType> *Grid<gObjType>::newGrid(const gMath::mRectangle& rect)
+template <typename gObjType>
+Grid<gObjType> *Grid<gObjType>::newGrid(const gMath::mRectangle &rect)
 {
     auto pObj = mManager->acquireGrid();
     pObj->rect = rect;
-    pObj->parentGrid = nullptr , pObj->root = pObj;
+    pObj->parentGrid = nullptr, pObj->root = pObj;
     return pObj;
 }
 
-    template <typename gObjType>
+template <typename gObjType>
 Grid<gObjType> *Grid<gObjType>::newGrid(gMath::axisV l, gMath::axisV r, gMath::axisV t, gMath::axisV b, Grid<gObjType> *parentGrid)
 {
     auto pObj = mManager->acquireGrid();
-    pObj->rect.l=l,pObj->rect.r=r,pObj->rect.t=t,pObj->rect.b=b;
-    pObj->parentGrid = parentGrid, pObj -> root = parentGrid->root;
+    pObj->rect.l = l, pObj->rect.r = r, pObj->rect.t = t, pObj->rect.b = b;
+    pObj->parentGrid = parentGrid, pObj->root = parentGrid->root;
     return pObj;
 }
 
-    template <typename T>
+template <typename T>
 Grid<T> *GridManager<T>::acquireGrid()
 {
-    if (gridPool.empty()){
-        return new Grid<T>();
-    }    
-    else{
-        auto grid=gridPool.back();
-        gridPool.pop_back();
-        return grid;
+    Grid<T> *pt = nullptr;
+    if (gridPool.empty())
+    {
+        pt = new Grid<T>();
     }
-    return nullptr;
+    else
+    {
+        pt = gridPool.back();
+        gridPool.pop_back();
+    }
+    referencePool[pt->gridID] = std::unordered_map<mID, T *>();
+    return pt;
 }
 
-
-
 template <typename gObjType>
-    template <typename... Args>
+template <typename... Args>
 bool Grid<gObjType>::recursionForInnerGrid(gObjType *pObj, bool (Grid<gObjType>::*method)(Args...), Args... args)
 {
-    //对象在坐标轴上将归为右边的, 上方的方块中
-    //编码:
-    //00: rt 右上
-    //01: lt 左上
-    //10: rb 右下
-    //11: lb 左下
-    short state = (pObj->get_x() * 2 - rect.l - rect.r < 0) + (pObj->get_y()*2 - rect.t - rect.b < 0) *2;
+    // 对象在坐标轴上将归为右边的, 上方的方块中
+    // 编码:
+    // 00: rt 右上
+    // 01: lt 左上
+    // 10: rb 右下
+    // 11: lb 左下
+    short state = (pObj->get_x() * 2 - rect.l - rect.r < 0) + (pObj->get_y() * 2 - rect.t - rect.b < 0) * 2;
 
-    switch(state){
-        case 0:
-            return (rt->*method)(args...);
-        case 1:
-            return (lt->*method)(args...);
-        case 2:
-            return (rb->*method)(args...);
-        case 3:
-            return (lb->*method)(args...);
+    switch (state)
+    {
+    case 0:
+        return (rt->*method)(args...);
+    case 1:
+        return (lt->*method)(args...);
+    case 2:
+        return (rb->*method)(args...);
+    case 3:
+        return (lb->*method)(args...);
     }
     return false;
 }

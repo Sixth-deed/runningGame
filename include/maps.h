@@ -10,8 +10,6 @@ class testmapMap : public mGame<ObjectManager<StableRectangleObj, LiberalRectang
         testmapMap(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect, PhysicsEngine* const engine): mGame(initialSizes, gridsInitialize, rect, engine){}
     public :
     static testmapMap*  initializeGame();
-    void GameLoop(gameLoopParam& param){
-        mGame::GameLoop(param);
-    }
+    
 };
 #endif

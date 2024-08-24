@@ -16,21 +16,22 @@
 #include <thread>
 #include <chrono>
 #include <unordered_set>
+/*
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
-
+*/
 
 struct gameLoopParam
 {
     int numOfActiveMoveObj;
-    gameLoopParam() : numOfActiveMoveObj(0){}
+    gameLoopParam() : numOfActiveMoveObj(0) {}
 };
 
-
 /*游戏实例虚基类，定义接口用*/
-class mGameVirtualBase{
-    public:
-    virtual void GameLoop(gameLoopParam &param) = 0 ;
+class mGameVirtualBase
+{
+public:
+    virtual void GameLoop() = 0;
     virtual ~mGameVirtualBase() = default;
 };
 /*
@@ -48,7 +49,7 @@ protected:
 
     ManagerT mainObjManager;
 
-    PhysicsEngine* mainEngine;
+    PhysicsEngine *mainEngine;
 
     std::tuple<GridManager<GridManagingGameObjTypes>...> GridManagers;
 
@@ -71,24 +72,27 @@ protected:
     template <typename gObjType>
     std::vector<Grid<gObjType> *> *activeGrids()
     {
-        return std::get<std::vector<Grid<gObjType>*> *>(activeGridsTuple);
+        return std::get<std::vector<Grid<gObjType> *> *>(activeGridsTuple);
     }
     void updateActiveGrids();
     void initializeActiveGrids();
-    mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect, PhysicsEngine* const engine);
+    mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect, PhysicsEngine *const engine);
 
     template <typename cstType, typename... Args>
-    cstType* newConstraint(Args... args){
+    cstType *newConstraint(Args... args)
+    {
         return mainEngine->getCstManager()->newConstraint<cstType>(args...);
     }
-    void releaseObjs(std::unordered_set<MoveObj* >& toRelease);
+    void releaseObjs(std::unordered_set<MoveObj *> &toRelease);
+
+    void initilizeGridMangerRfr();
+
 public:
     ~mGame();
     // 初始化游戏
-    static  mGame &initializeGame();
+    static mGame &initializeGame();
 
-
-   template <std::size_t... Is>
+    template <std::size_t... Is>
     std::tuple<GridManager<GridManagingGameObjTypes>...> createGridManagers(std::index_sequence<Is...>, const std::tuple<int, int> *initialSizes)
     {
 
@@ -101,12 +105,12 @@ public:
 
         return std::tuple<Grid<GridManagingGameObjTypes> *...>(Grid<GridManagingGameObjTypes>::newGrid(rect)...);
     }
-    void GameLoop(gameLoopParam &param);
+    void GameLoop();
 };
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::deleteActiveGridsRef()
 {
-    (delete std::get<std::vector<Grid<GridManagingGameObjTypes>*> *>(activeGridsTuple), ...);
+    (delete std::get<std::vector<Grid<GridManagingGameObjTypes> *> *>(activeGridsTuple), ...);
 }
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::updateActiveGrids()
@@ -143,16 +147,17 @@ void helper_InsertActiveGrids(std::vector<Grid<gObjType> *> *v_pt, Grid<gObjType
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::initializeActiveGrids()
 {
-    ((std::get<std::vector<Grid<GridManagingGameObjTypes>*> *>(activeGridsTuple) = new std::vector<Grid<GridManagingGameObjTypes> *>()), ...);
-    ((helper_InsertActiveGrids(std::get<std::vector<Grid<GridManagingGameObjTypes>*> *>(activeGridsTuple), rootGrid<GridManagingGameObjTypes>())), ...);
+    ((std::get<std::vector<Grid<GridManagingGameObjTypes> *> *>(activeGridsTuple) = new std::vector<Grid<GridManagingGameObjTypes> *>()), ...);
+    ((helper_InsertActiveGrids(std::get<std::vector<Grid<GridManagingGameObjTypes> *> *>(activeGridsTuple), rootGrid<GridManagingGameObjTypes>())), ...);
 }
 template <typename ManagerT, typename... GridManagingGameObjTypes>
-mGame<ManagerT, GridManagingGameObjTypes...>::mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect, PhysicsEngine* const engine) : 
-    mainObjManager(initialSizes),
-    GridManagers(createGridManagers(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), gridsInitialize.begin())),
-    rootGrids(createRootGrids(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), rect)),
-    mainEngine(engine)
+mGame<ManagerT, GridManagingGameObjTypes...>::mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect, PhysicsEngine *const engine) : mainObjManager(initialSizes),
+                                                                                                                                                                                                                                GridManagers(createGridManagers(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), gridsInitialize.begin())),
+                                                                                                                                                                                                                                rootGrids((initilizeGridMangerRfr(),
+                                                                                                                                                                                                                                           createRootGrids(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), rect))),
+                                                                                                                                                                                                                                mainEngine(engine)
 {
+    initializeActiveGrids();
 }
 template <std::size_t... Is, typename T>
 void clearHelper(std::index_sequence<Is...>, T &tuple)
@@ -167,31 +172,32 @@ mGame<ManagerT, GridManagingGameObjTypes...>::~mGame()
     ActiveRectangle::clear();
 }
 
-
 template <typename ManagerT, typename... GridManagingGameObjTypes>
-void mGame<ManagerT, GridManagingGameObjTypes...>::releaseObjs(std::unordered_set<MoveObj* >& toRelease){
-    for (MoveObj* objp : toRelease){
-        gInstance* pt = reinterpret_cast<gInstance*> (objp);
-switch (pt->getType()){
-    case mtype::gInstanceTypes::gInstance:
-        //不合理的，直接使用用实例对象        
-        break;
-    case mtype::gInstanceTypes::StableRectangleObj:
-                mainObjManager.release(reinterpret_cast<StableRectangleObj*>(pt));
-                break;
-    case mtype::gInstanceTypes::LiberalRectangleObj : 
-                mainObjManager.release(reinterpret_cast<LiberalRectangleObj*>(pt));
-                break;
-        
+void mGame<ManagerT, GridManagingGameObjTypes...>::releaseObjs(std::unordered_set<MoveObj *> &toRelease)
+{
+    for (MoveObj *objp : toRelease)
+    {
+        gInstance *pt = reinterpret_cast<gInstance *>(objp);
+        switch (pt->getType())
+        {
+        case mtype::gInstanceTypes::gInstance:
+            // 不合理的，直接使用用实例对象
+            break;
+        case mtype::gInstanceTypes::StableRectangleObj:
+            mainObjManager.release(reinterpret_cast<StableRectangleObj *>(pt));
+            break;
+        case mtype::gInstanceTypes::LiberalRectangleObj:
+            mainObjManager.release(reinterpret_cast<LiberalRectangleObj *>(pt));
+            break;
         }
-
-
-
     }
 }
 
-
-
+template <typename ManagerT, typename... GridManagingGameObjTypes>
+inline void mGame<ManagerT, GridManagingGameObjTypes...>::initilizeGridMangerRfr()
+{
+    ((Grid<GridManagingGameObjTypes>::setGridManager(&std::get<GridManager<GridManagingGameObjTypes>>(GridManagers))), ...);
+}
 
 // 60是帧率
 extern std::chrono::milliseconds clocksPerFrame;
@@ -205,30 +211,33 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::ActiveGridsRefernceUpdate(std
      ...);
 }
 template <typename ManagerT, typename... GridManagingGameObjTypes>
-void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop(gameLoopParam &param)
+void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
 {
-    std::unordered_set<MoveObj *> toUpdate(param.numOfActiveMoveObj * 2);
-    std::unordered_set<MoveObj *> toRelease(3);
-    auto start = std::chrono::steady_clock::now();
-    for (Grid<ActObj> *actobjGrid_p : *(activeGrids<ActObj>()))
+    gameLoopParam param;
+    while (true)
     {
-        actobjGrid_p->forEachInGrid([&toUpdate](ActObj *actObj_p)
-                                    {
+        std::unordered_set<MoveObj *> toUpdate(param.numOfActiveMoveObj * 2);
+        std::unordered_set<MoveObj *> toRelease(3);
+        auto start = std::chrono::steady_clock::now();
+        for (Grid<ActObj> *actobjGrid_p : *(activeGrids<ActObj>()))
+        {
+            actobjGrid_p->forEachInGrid([&toUpdate](ActObj *actObj_p)
+                                        {
                  actObj_p->act();
                  if (actObj_p ->movable){
                     toUpdate.insert(reinterpret_cast<MoveObj*>(actObj_p));
                  } });
-    }
-    updateActiveGrids();
-    std::unordered_set<MoveObj *> toupdateReference(toUpdate.begin(), toUpdate.end());
-    ActiveGridsRefernceUpdate(toupdateReference, toRelease);
-    releaseObjs(toRelease);
+        }
+        updateActiveGrids();
+        std::unordered_set<MoveObj *> toupdateReference(toUpdate.begin(), toUpdate.end());
+        ActiveGridsRefernceUpdate(toupdateReference, toRelease);
+        releaseObjs(toRelease);
 
-    // 约束修正
-    for (Grid<EntityObj> *ettobjGrid_p : *(activeGrids<EntityObj>()))
-    {
-        ettobjGrid_p->forEachInGrid([&toUpdate, ettobjGrid_p, this](EntityObj *ettObj_p)
+        // 约束修正
+        for (Grid<EntityObj> *ettobjGrid_p : *(activeGrids<EntityObj>()))
         {
+            ettobjGrid_p->forEachInGrid([&toUpdate, ettobjGrid_p, this](EntityObj *ettObj_p)
+                                        {
         auto mainEngine = this->mainEngine;
             if (ettObj_p->movable){
                 if (toUpdate.count(reinterpret_cast<MoveObj*>(ettObj_p))){
@@ -238,44 +247,43 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop(gameLoopParam &param
                     });
                 }
             } });
+        }
+        mainEngine->getCstManager()->updateAll();
+        mainEngine->getCstManager()->solveAll();
+        /*
+        // 处理接收到的操作
+        auto commandQueue = aquireCommandBuffer();
+        while (!commandQueue.empty())
+        {
+            auto &command = commandQueue.top();
+            commandQueue.pop();
+            command.solve();
+        }
+
+        // 向前端发信
+
+        //toSend会有的，不用考虑实现
+        //只发送改变了位置或状态(flags)的对象
+        gObjContainer toSend;
+        SendPackContainer mesContainer
+
+        for (auto gobj : toSend){
+            gobj.send(mesContainer);
+        }
+        // 交给webSocket模块处理容器
+        // 在code/fwd/ 目录下实现收发细节
+        webSend(mesContainer);
+
+        //这只是一个示例，可以通过别的方法实现，比如在obj的send函数里就直接调用websocket的收发
+
+        */
+
+        auto end = std::chrono::steady_clock::now();
+        auto elasped = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        if (elasped < clocksPerFrame)
+            std::this_thread::sleep_for(clocksPerFrame - elasped);
     }
-    mainEngine->getCstManager()->updateAll();
-    mainEngine->getCstManager()->solveAll();
-    /*
-    // 处理接收到的操作
-    auto commandQueue = aquireCommandBuffer();
-    while (!commandQueue.empty())
-    {
-        auto &command = commandQueue.top();
-        commandQueue.pop();
-        command.solve();
-    }
-
-    // 向前端发信
-    
-    //toSend会有的，不用考虑实现
-    //只发送改变了位置或状态(flags)的对象
-    gObjContainer toSend;  
-    SendPackContainer mesContainer
-
-    for (auto gobj : toSend){
-        gobj.send(mesContainer);
-    }
-    // 交给webSocket模块处理容器
-    // 在code/fwd/ 目录下实现收发细节
-    webSend(mesContainer);
-
-    //这只是一个示例，可以通过别的方法实现，比如在obj的send函数里就直接调用websocket的收发
-
-    */
-
-    auto end = std::chrono::steady_clock::now();
-    auto elasped = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    if (elasped < clocksPerFrame)
-        std::this_thread::sleep_for(clocksPerFrame - elasped);
-    GameLoop(param);
 }
 
-
-//可能用vector和list可以实现
+// 可能用vector和list可以实现
 #endif

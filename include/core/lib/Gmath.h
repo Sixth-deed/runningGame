@@ -7,6 +7,11 @@
 #include <stack>
 #include <queue>
 #include <initializer_list>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 namespace gMath
 {
     
@@ -19,7 +24,7 @@ namespace gMath
      * @return The clamped value.
      */
     inline double clamp(double value, double min, double max);
-    using axisV = unsigned int;
+    using axisV = int;
     //角度
     class Angle;
 

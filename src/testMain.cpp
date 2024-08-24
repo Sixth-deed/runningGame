@@ -1,7 +1,6 @@
 #include "maps.h"
 int main(){
     mGameVirtualBase* game = testmapMap::initializeGame();
-    gameLoopParam param;
-    game -> GameLoop(param);
+    game -> GameLoop();
     return 0;
 }

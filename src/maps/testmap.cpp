@@ -18,6 +18,9 @@ testmapMap*  testmapMap::initializeGame() {
        PhysicsObj::setPhysicsEngine(pEngine);
        Constraint::setCstManager(pEngine->getCstManager());
 
+        //让GameLoop转起来的辅助对象
+       ActiveRectangle Trect(-100, 100, 200, -200);
+
        auto theGame = new testmapMap({1 , 2}, {{3 , 1},{2 ,1},{3 , 1}}, gMath::mRectangle(-1000, 1000, 500, -500), pEngine);
        auto gObjRootGrid = std::get<Grid<gObj> *>(theGame->rootGrids);
        auto ActRootGrid = std::get<Grid<ActObj> *>(theGame->rootGrids);
