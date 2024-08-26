@@ -1,8 +1,17 @@
+#请让git忽略你的Makefile文件，修改这个文档以配置你本地的编译工作
+YOUR_PACKAGE_DIR = #your package directory here
+
+
 # 编译器设置
 CC = g++
-CFLAGS_DEBUG = -Iinclude -Wall -g -std=c++20 -fdiagnostics-color=always -DDEBUG -DGAME_LOOP_LOG -MMD -MP
-CFLAGS_RELEASE = -Iinclude -Wall -O3 -std=c++20 -fdiagnostics-color=always -MMD -MP
-
+CFLAGS_DEBUG = -Iinclude -Wall -g -std=c++20 -fdiagnostics-color=always -DDEBUG -DGAME_LOOP_LOG -MMD -MP \
+	-I$(YOUR_PACKAGE_DIR)/websocketpp \
+	-I$(YOUR_PACKAGE_DIR)/json \
+	-lboost_system
+CFLAGS_RELEASE = -Iinclude -Wall -O3 -std=c++20 -fdiagnostics-color=always -MMD -MP \
+	-I$(YOUR_PACKAGE_DIR)/websocketpp \
+	-I$(YOUR_PACKAGE_DIR)/json \
+	-lboost_system
 # 默认构建类型
 BUILD_TYPE ?= debug
 
