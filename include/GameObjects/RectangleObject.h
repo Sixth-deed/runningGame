@@ -30,7 +30,7 @@ class StableRectangleObj : public StablePhysicsObj ,public gInstance {
         }
     bool CollisionAct(EntityObj& r) override{return true;}
 };
-class LiberalRectangleObj : public LiberalPhysicsObj
+class LiberalRectangleObj : public LiberalPhysicsObj,public gInstance 
 {
     DECLARE_INSTANCE_TYPE(LiberalRectangleObj)
     public:
@@ -48,7 +48,7 @@ class LiberalRectangleObj : public LiberalPhysicsObj
 LiberalRectangleObj& to = *(m.template acquire<LiberalRectangleObj>());
 const double x = toLeftTop.x ;
 const double y = toLeftTop.y ;
-initObj(&to, crd, angle_, clsn::CollisionBox(std::vector<gMath::tVector>{toLeftTop,gMath::tVector(-x , y),gMath::tVector(-x , -y),gMath::tVector(x, -y)} ), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, initialVelocity, initialAccelr);
+initObj(&to, crd, angle_, clsn::CollisionBox(std::vector<gMath::tVector>{toLeftTop,gMath::tVector(-x , y),gMath::tVector(-x , -y),gMath::tVector(x, -y)}, true, angle_), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, initialVelocity, initialAccelr);
         return to;
         }
     template <typename managerT>

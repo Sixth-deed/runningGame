@@ -1,6 +1,7 @@
 #include "GameObjects/allObjects.h"
 
 namespace mtype{
+    /*
     //废案，无用
     template <typename FuncT, typename Obj_pt>
     void applyTemplateMethod( Obj_pt pt, FuncT f , ::gInstance* gInst)
@@ -17,6 +18,6 @@ namespace mtype{
                 break;
         
         }
-    }
+    }*/
 
 };

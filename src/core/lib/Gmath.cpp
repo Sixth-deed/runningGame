@@ -59,7 +59,7 @@ bool gMath::mRectangle::Inside(const Crdinate &crd, const std::vector<tVector> *
     if (crd.get_x() + p.low <= l || crd.get_x() + p.high >= r)
         return false;
     Projection p2 =projectTo(*vs, tVector(0.0, 1.0));
-    if (crd.get_y() + p.low <= b || crd.get_y() + p.high >= r)
+    if (crd.get_y() + p2.low <= b || crd.get_y() + p2.high >= r)
         return false;
     return true;
 }

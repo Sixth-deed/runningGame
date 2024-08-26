@@ -9,6 +9,7 @@
 #include "PhysicsEngine.h"
 #include "GameObjects/gInstance.h"
 #include "GameObjects/allObjects.h"
+#include "logger/logger.h"
 #include <unordered_map>
 #include <utility>
 #include <algorithm>
@@ -21,10 +22,11 @@
 #include <websocketpp/server.hpp>
 */
 
-struct gameLoopParam
+struct gameLoopBundle
 {
     int numOfActiveMoveObj;
-    gameLoopParam() : numOfActiveMoveObj(0) {}
+    std::vector<gObj*> toSend;
+    gameLoopBundle() : numOfActiveMoveObj(1), toSend() {}
 };
 
 /*游戏实例虚基类，定义接口用*/
@@ -33,6 +35,10 @@ class mGameVirtualBase
 public:
     virtual void GameLoop() = 0;
     virtual ~mGameVirtualBase() = default;
+
+    #ifdef DEBUG
+    virtual void printEntityGrids() = 0;
+    #endif
 };
 /*
 游戏实例基类
@@ -45,7 +51,7 @@ template <typename ManagerT, typename... GridManagingGameObjTypes>
 class mGame : public mGameVirtualBase
 {
 protected:
-    std::unordered_map<mID, gObj *> env;
+    std::unordered_map<mID, gInstance *> env;
 
     ManagerT mainObjManager;
 
@@ -58,11 +64,15 @@ protected:
     std::tuple<std::vector<Grid<GridManagingGameObjTypes> *> *...> activeGridsTuple;
 
     void deleteActiveGridsRef();
-    void ActiveGridsRefernceUpdate(std::unordered_set<MoveObj *> &toUpdate, std::unordered_set<MoveObj *> &toRelease);
+    void ActiveGridsRefernceUpdate(std::unordered_set<mID> &toUpdate, std::unordered_set<mID> &toRelease);
     template <typename gObjType, typename... Args>
     gObjType &newObj(Args... args)
     {
-        return gObjType::newObj(mainObjManager, args...);
+        gObjType& obj = gObjType::newObj(mainObjManager, args...);
+        bundle.toSend.push_back(&obj);
+        //此处限制了游戏运行时的具体对象一定是gInstance的子类对象
+        env.emplace(obj.getID(), static_cast<gInstance *> (&obj));
+        return obj;
     }
     template <typename gObjType>
     Grid<gObjType> *rootGrid()
@@ -83,10 +93,12 @@ protected:
     {
         return mainEngine->getCstManager()->newConstraint<cstType>(args...);
     }
-    void releaseObjs(std::unordered_set<MoveObj *> &toRelease);
+    void releaseObjs(std::unordered_set<mID> &toRelease);
 
     void initilizeGridMangerRfr();
 
+    
+    gameLoopBundle bundle;
 public:
     ~mGame();
     // 初始化游戏
@@ -106,6 +118,11 @@ public:
         return std::tuple<Grid<GridManagingGameObjTypes> *...>(Grid<GridManagingGameObjTypes>::newGrid(rect)...);
     }
     void GameLoop();
+
+    #ifdef DEBUG
+    void printEntityGrids();
+    #endif
+
 };
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::deleteActiveGridsRef()
@@ -173,23 +190,27 @@ mGame<ManagerT, GridManagingGameObjTypes...>::~mGame()
 }
 
 template <typename ManagerT, typename... GridManagingGameObjTypes>
-void mGame<ManagerT, GridManagingGameObjTypes...>::releaseObjs(std::unordered_set<MoveObj *> &toRelease)
+void mGame<ManagerT, GridManagingGameObjTypes...>::releaseObjs(std::unordered_set<mID> &toRelease)
 {
-    for (MoveObj *objp : toRelease)
+    for (mID id : toRelease)
     {
-        gInstance *pt = reinterpret_cast<gInstance *>(objp);
+        gInstance *pt = env[id];
         switch (pt->getType())
         {
         case mtype::gInstanceTypes::gInstance:
-            // 不合理的，直接使用用实例对象
+            // 不合理的，直接使用实例类的对象
+            LOG_ERROR(std::string("cannot use instance object!"));
             break;
         case mtype::gInstanceTypes::StableRectangleObj:
-            mainObjManager.release(reinterpret_cast<StableRectangleObj *>(pt));
+            //PT_CAST
+            mainObjManager.release(dynamic_cast<StableRectangleObj *>(pt));
             break;
         case mtype::gInstanceTypes::LiberalRectangleObj:
-            mainObjManager.release(reinterpret_cast<LiberalRectangleObj *>(pt));
+            //PT_CAST
+            mainObjManager.release(dynamic_cast<LiberalRectangleObj *>(pt));
             break;
         }
+        env.erase(id);
     }
 }
 
@@ -204,7 +225,7 @@ extern std::chrono::milliseconds clocksPerFrame;
 
 // 用于辅助GameLoop从上一次GameLoop结果获取信息的结构体
 template <typename ManagerT, typename... GridManagingGameObjTypes>
-void mGame<ManagerT, GridManagingGameObjTypes...>::ActiveGridsRefernceUpdate(std::unordered_set<MoveObj *> &toUpdate, std::unordered_set<MoveObj *> &toRelease)
+void mGame<ManagerT, GridManagingGameObjTypes...>::ActiveGridsRefernceUpdate(std::unordered_set<mID> &toUpdate, std::unordered_set<mID> &toRelease)
 {
     ((std::for_each(activeGrids<GridManagingGameObjTypes>()->begin(), activeGrids<GridManagingGameObjTypes>()->end(), [&](Grid<GridManagingGameObjTypes> *grid)
                     { grid->frameUpDate(toUpdate, toRelease); })),
@@ -213,34 +234,44 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::ActiveGridsRefernceUpdate(std
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
 {
-    gameLoopParam param;
+    using str = std::string;
+
+#ifdef GAME_LOOP_LOG
+    unsigned int frameCount = 0;
+#endif
     while (true)
     {
-        std::unordered_set<MoveObj *> toUpdate(param.numOfActiveMoveObj * 2);
-        std::unordered_set<MoveObj *> toRelease(3);
+        std::unordered_set<mID> toUpdate(bundle.numOfActiveMoveObj * 2);
+        std::unordered_set<mID> toRelease(3);
         auto start = std::chrono::steady_clock::now();
+
         for (Grid<ActObj> *actobjGrid_p : *(activeGrids<ActObj>()))
         {
             actobjGrid_p->forEachInGrid([&toUpdate](ActObj *actObj_p)
                                         {
                  actObj_p->act();
-                 if (actObj_p ->movable){
-                    toUpdate.insert(reinterpret_cast<MoveObj*>(actObj_p));
+                 if (actObj_p ->isMovable() && !actObj_p->isSleep()){
+                    toUpdate.insert(actObj_p->getID());
                  } });
         }
         updateActiveGrids();
-        std::unordered_set<MoveObj *> toupdateReference(toUpdate.begin(), toUpdate.end());
+        std::unordered_set<mID> toupdateReference(toUpdate.begin(), toUpdate.end());
         ActiveGridsRefernceUpdate(toupdateReference, toRelease);
         releaseObjs(toRelease);
 
+
+        #ifdef DEBUG
+     //   LOG_DEBUG(str("in GameLoop EntityGrids: \n\t"));
+ //       printEntityGrids();
+        #endif
         // 约束修正
         for (Grid<EntityObj> *ettobjGrid_p : *(activeGrids<EntityObj>()))
         {
             ettobjGrid_p->forEachInGrid([&toUpdate, ettobjGrid_p, this](EntityObj *ettObj_p)
                                         {
-        auto mainEngine = this->mainEngine;
-            if (ettObj_p->movable){
-                if (toUpdate.count(reinterpret_cast<MoveObj*>(ettObj_p))){
+        auto& mainEngine = this->mainEngine;
+            if (ettObj_p->isMovable()){
+                if (toUpdate.count(ettObj_p->getID())){
                     ettobjGrid_p -> forEachInGrid([ettObj_p , mainEngine](EntityObj* other){
                             mainEngine->getCstManager()->checkAndUpdate(ettObj_p, other);
                             
@@ -259,7 +290,25 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
             commandQueue.pop();
             command.solve();
         }
-
+        */
+#ifdef GAME_LOOP_LOG
+#ifdef DEBUG
+if ((frameCount++) % 30 == 0){
+        LOG_DEBUG("FrameCount: " + std::to_string(frameCount) +"\n");
+        for (gObj* gObj_p : bundle.toSend ){
+            LOG_DEBUG("A game object:" + gObj_p->log());
+        }
+    }
+#else
+if ((frameCount++) % 60 == 0){
+        LOG_INFO("FrameCount:" + std::to_string(frameCount) +" !\n");
+        for (gObj* gObj_p : bundle.toSend ){
+            LOG_INFO("A game object:" + gObj_p->log());
+        }
+    }
+#endif  
+#endif
+/*
         // 向前端发信
 
         //toSend会有的，不用考虑实现
@@ -276,7 +325,7 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
 
         //这只是一个示例，可以通过别的方法实现，比如在obj的send函数里就直接调用websocket的收发
 
-        */
+*/
 
         auto end = std::chrono::steady_clock::now();
         auto elasped = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -285,5 +334,19 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
     }
 }
 
+
+
 // 可能用vector和list可以实现
+
+template <typename ManagerT, typename... GridManagingGameObjTypes>
+inline void mGame<ManagerT, GridManagingGameObjTypes...>::printEntityGrids()
+{
+    for (Grid<EntityObj> *ettobjGrid_p : *(activeGrids<EntityObj>()))
+    {
+        LOG_DEBUG("EntityGrid: \n\t" + ettobjGrid_p->log()+ "\n");
+        LOG_DEBUG(std::string("Objs in grid: \n\t"));
+        ettobjGrid_p->forEachInGrid([](EntityObj *ettObj_p)
+                                    { LOG_DEBUG("EntityObj: \n\t" + ettObj_p->log()+ "\n"); });
+    }
+}
 #endif

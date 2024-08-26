@@ -1,7 +1,7 @@
 # 编译器设置
 CC = g++
-CFLAGS_DEBUG = -Iinclude -Wall -g -std=c++20 -fdiagnostics-color=always
-CFLAGS_RELEASE = -Iinclude -Wall -O3 -std=c++20 -fdiagnostics-color=always
+CFLAGS_DEBUG = -Iinclude -Wall -g -std=c++20 -fdiagnostics-color=always -DDEBUG -DGAME_LOOP_LOG -MMD -MP
+CFLAGS_RELEASE = -Iinclude -Wall -O3 -std=c++20 -fdiagnostics-color=always -MMD -MP
 
 # 默认构建类型
 BUILD_TYPE ?= debug
@@ -23,6 +23,7 @@ ERROR_LOG = $(BUILD_DIR)/error.log
 # 源文件和对象文件
 SRCS = $(wildcard src/**/**/*.cpp) $(wildcard src/**/*.cpp) $(wildcard src/*.cpp)
 OBJS = $(patsubst src/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
+DEP_FILES = $(patsubst $(BUILD_DIR)/%.o,$(BUILD_DIR)/%.d,$(OBJS))
 TARGET = $(BIN_DIR)/buildTest
 
 # 默认目标
@@ -42,6 +43,10 @@ $(BUILD_DIR)/%.o: src/%.cpp
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@ 2>> $(ERROR_LOG)
 
+
+
+# 包含依赖文件
+-include $(DEP_FILES)
 # 清理
 clean:
 	rm -rf build bin

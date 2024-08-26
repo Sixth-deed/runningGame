@@ -11,50 +11,43 @@ gMath::Projection CollisionBox::projectTo(const tVector &axis) const
 {
     switch (vectors.size())
     {
-    case 1:{
+    case 1:
+    {
         const tVector r = axis * radius();
-        return gMath::Projection(-radius(), r.reverse(), radius(), std::move(r));}
-    case 2:{
+        return gMath::Projection(-radius(), r.reverse(), radius(), std::move(r));
+    }
+    case 2:
+    {
         double t = vectors[0].dot(axis);
         const tVector v = axis * t;
         if (t > 0.0)
             return gMath::Projection(-t, v.reverse(), t, std::move(v));
-        return gMath::Projection(t, std::move(v), -t, v.reverse());}
-    default:{
-        // 考虑到是顺时针遍历顶点可以稍作优化
-        double max = vectors[0].dot(axis), min;
-        int i = 1;
+        return gMath::Projection(t, std::move(v), -t, v.reverse());
+    }
+    default:
+    {
+        // TODO: 可优化，现在是遍历，寻找山峰山谷的二分更优
+        double max = vectors[0].dot(axis), min = max;
+
         const tVector *minpt, *maxpt;
-        for (; i < vectors.size(); i++)
+        for (int i = 1; i < vectors.size(); i++)
         {
             double projection_i = vectors[i].dot(axis);
-            if (projection_i > max)
+            if (projection_i >= max)
             {
                 max = projection_i;
+                maxpt = &vectors[i];
             }
-            else
-            {
-                maxpt = &vectors[i - 1];
-                min = projection_i;
-                break;
-            }
-        }
-        for (; i < vectors.size(); i++)
-        {
-            double projection_i = vectors[i].dot(axis);
-            if (projection_i < min)
+            if (projection_i <= min)
             {
                 min = projection_i;
-            }
-            else
-            {
-                minpt = &vectors[i - 1];
-                break;
+                minpt = &vectors[i];
             }
         }
 
         return gMath::Projection(min, tVector(*minpt), max, tVector(*maxpt));
-    }}
+    }
+    }
 }
 
 void clsn::CollisionBox::RotateTo(const Angle &angle)
@@ -64,13 +57,15 @@ void clsn::CollisionBox::RotateTo(const Angle &angle)
     case 1:
 
         return;
-    case 2:{
+    case 2:
+    {
         auto rotateAngle = angle - nAngle;
         vectors[0].rotate(rotateAngle);
         ns->at(0).rotate(rotateAngle);
         return;
-        }
-    case 3:{
+    }
+    default:
+    {
         auto rotateAngle = angle - nAngle;
         std::for_each(std::execution::par, vectors.begin(), vectors.end(), [&](tVector &vec)
                       { vec.rotate(rotateAngle); });
@@ -78,18 +73,18 @@ void clsn::CollisionBox::RotateTo(const Angle &angle)
         std::for_each(std::execution::par, ns->begin(), ns->end(), [&](tVector &vec)
                       {
                 vec.rotate(rotateAngle);
-                vec.unify(); });}
+                vec.unify(); });
+    }
     }
 }
 mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, CollisionBox &b1, const Angle &angle1, const Crdinate &crd2, CollisionBox &b2, const Angle &angle2)
 {
-    //SAT算法
-    //GJK - EPA
-
+    // SAT算法
+    // GJK - EPA
 
     // 由对象1的中心点指向对象2的中心点的向量
     tVector offset12 = crd2 - crd1;
-    auto consolveLineAndCircle = [] (const tVector &offset, const CollisionBox &Line, const CollisionBox &Circle, bool reversed)
+    auto consolveLineAndCircle = [](const tVector &offset, const CollisionBox &Line, const CollisionBox &Circle, bool reversed)
         -> mOptional<CollisionLocal>
     {
         // 不考虑线段两头撞上圆的情形，本身线段只是作辅助的补充碰撞箱
@@ -308,7 +303,8 @@ mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, Collisi
 
             // 进行SAT检测
             // 记录最小位移向量
-            const tVector *v1, *v2, *minV;
+            const tVector *minV;
+            tVector v1, v2;
             double mMin = DBL_MAX;
             for (const auto &axis : *(b1.ns))
             {
@@ -324,8 +320,8 @@ mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, Collisi
                     const double temp = p1.high - p2.low;
                     if (mMin > temp)
                     {
-                        v1 = &p1.toHighPoint;
-                        v2 = &p2.toLowPoint;
+                        v1 = std::move(p1.toHighPoint);
+                        v2 = std::move(p2.toLowPoint);
                         mMin = temp;
                         minV = &axis;
                     }
@@ -335,8 +331,8 @@ mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, Collisi
                     const double temp = p2.high - p1.low;
                     if (mMin > temp)
                     {
-                        v1 = &p2.toHighPoint;
-                        v2 = &p1.toLowPoint;
+                        v1 = std::move(p1.toLowPoint);
+                        v2 = std::move(p2.toHighPoint);
                         mMin = temp;
                         minV = &axis;
                     }
@@ -356,8 +352,8 @@ mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, Collisi
                     const double temp = p1.high - p2.low;
                     if (mMin > temp)
                     {
-                        v1 = &p1.toHighPoint;
-                        v2 = &p2.toLowPoint;
+                        v1 = std::move(p1.toHighPoint);
+                        v2 = std::move(p2.toLowPoint);
                         mMin = temp;
                         minV = &axis;
                     }
@@ -367,19 +363,41 @@ mOptional<CollisionLocal> clsn::isReallyIntersects(const Crdinate &crd1, Collisi
                     const double temp = p2.high - p1.low;
                     if (mMin > temp)
                     {
-                        v1 = &p2.toHighPoint;
-                        v2 = &p1.toLowPoint;
+                        v1 = std::move(p1.toLowPoint);
+                        v2 = std::move(p2.toHighPoint);
                         mMin = temp;
                         minV = &axis;
                     }
                 }
             }
-            return mOptional<CollisionLocal>(CollisionLocal(*v1, *v2, *minV, *minV));
+            bool enable_2_Flag = true;
+            // 重投影，检测哪个对象的碰撞点在对方内部
+            const tVector c1tov2 = offset12 + v2;
+            for (const auto &axis : *(b1.ns))
+            {
+                Projection p1 = b1.projectTo(axis);
+                double project = c1tov2.dot(axis);
+                if (project < p1.low || project > p1.high)
+                {
+                    enable_2_Flag = false;
+                    break;
+                }
+            }
+            // 2的碰撞点在1内部
+            if (enable_2_Flag)
+            {
+                const tVector normal = (*minV).keepDirectionWith(offset12);
+                const tVector toCp1 = v2 + offset12 + (normal * mMin);
+                return mOptional<CollisionLocal>(CollisionLocal(std::move(toCp1), std::move(v2), normal, normal.normal()));
+            }
+            const tVector normal = (*minV).keepDirectionWith(offset12);
+            const tVector toCp2 = v1 - offset12 - (normal * mMin);
+            return mOptional<CollisionLocal>(CollisionLocal(std::move(v1), std::move(toCp2), normal, normal.normal()));
         }
     }
 }
-
-CollisionBox::CollisionBox(const std::vector<tVector> *array, bool rotatable_ , const gMath::Angle &angle) : vectors(std::move(*array)),vectors_p(&vectors), ns(nullptr), nAngle(angle), rotatable(rotatable_)
+/*
+CollisionBox::CollisionBox(const std::vector<tVector> *array, bool rotatable_ , const gMath::Angle &angle) : vectors(std::move(*array)), ns(nullptr), nAngle(angle), rotatable(rotatable_)
 {
 
     switch (vectors.size())
@@ -397,7 +415,7 @@ CollisionBox::CollisionBox(const std::vector<tVector> *array, bool rotatable_ , 
     case 2:
         if (rotatable)
         {
-            double len = std::sqrt(vectors[0].sLen());
+            double len = ceil(std::sqrt(vectors[0].sLen()));
             l = b = -len;
             r = t = len;
         }
@@ -417,11 +435,13 @@ CollisionBox::CollisionBox(const std::vector<tVector> *array, bool rotatable_ , 
             for (int i = 1; i < vectors.size(); i++)
             {
                 tempMaxLen = std::max(vectors[i].sLen(), tempMaxLen);
-                tempSet.insert(vectors[i].normal_and_unify());
+                tVector temp = vectors[i].keepDirectionWith(tVector(0.0, 1.0)).keepDirectionWith(tVector(1.0, 0.0));
+                tempSet.insert(temp.normal_and_unify());
             }
-            tempMaxLen = std::sqrt(tempMaxLen);
-            b = l = static_cast<axisV>(-tempMaxLen);
-            t = r = static_cast<axisV>(tempMaxLen);
+            tempMaxLen = ceil(std::sqrt(tempMaxLen));
+            const axisV tempMaxLen_ = static_cast<axisV>(tempMaxLen);
+            b = l = static_cast<axisV>(-tempMaxLen_);
+            t = r = static_cast<axisV>(tempMaxLen_);
             ns = new std::vector<tVector>(tempSet.begin(), tempSet.end());
             if (std::abs(angle.getDegrees()) > 1)
             {
@@ -449,8 +469,9 @@ CollisionBox::CollisionBox(const std::vector<tVector> *array, bool rotatable_ , 
         }
     }
 }
-CollisionBox::CollisionBox(std::vector<tVector>&& array, bool rotatable_ , const Angle &angle )
-:vectors(std::move(array)),vectors_p(&vectors), ns(nullptr), nAngle(angle), rotatable(rotatable_)
+*/
+CollisionBox::CollisionBox(std::vector<tVector> &&array, bool rotatable_, const Angle &angle)
+    : vectors(std::move(array)), ns(nullptr), nAngle(0.0), rotatable(rotatable_)
 {
 
     switch (vectors.size())
@@ -468,7 +489,7 @@ CollisionBox::CollisionBox(std::vector<tVector>&& array, bool rotatable_ , const
     case 2:
         if (rotatable)
         {
-            double len = std::sqrt(vectors[0].sLen());
+            double len = ceil(std::sqrt(vectors[0].sLen()));
             l = b = -len;
             r = t = len;
         }
@@ -484,15 +505,17 @@ CollisionBox::CollisionBox(std::vector<tVector>&& array, bool rotatable_ , const
         {
             std::unordered_set<tVector> tempSet;
             double tempMaxLen = vectors[0].sLen();
-            tempSet.insert(vectors[0].normal_and_unify());
+            tempSet.insert((vectors[vectors.size() - 1] - vectors[0]).normal_and_unify());
             for (int i = 1; i < vectors.size(); i++)
             {
                 tempMaxLen = std::max(vectors[i].sLen(), tempMaxLen);
-                tempSet.insert(vectors[i].normal_and_unify());
+                const tVector temp = (vectors[i] - vectors[i - 1]).normal_and_unify().keepDirectionWith(tVector(0.0, 1.0)).keepDirectionWith(tVector(1.0, 0.0));
+                tempSet.insert(temp);
             }
-            tempMaxLen = std::sqrt(tempMaxLen);
-            b = l = static_cast<axisV>(-tempMaxLen);
-            t = r = static_cast<axisV>(tempMaxLen);
+            tempMaxLen = ceil(std::sqrt(tempMaxLen));
+            const axisV tempMaxLen_ = static_cast<axisV>(tempMaxLen);
+            b = l = static_cast<axisV>(-tempMaxLen_);
+            t = r = static_cast<axisV>(tempMaxLen_);
             ns = new std::vector<tVector>(tempSet.begin(), tempSet.end());
             if (std::abs(angle.getDegrees()) > 1)
             {
@@ -502,15 +525,17 @@ CollisionBox::CollisionBox(std::vector<tVector>&& array, bool rotatable_ , const
         else
         {
             std::unordered_set<tVector> tempSet;
-            tempSet.insert(vectors[0].normal_and_unify());
+            tempSet.insert((vectors[vectors.size() - 1] - vectors[0]).normal_and_unify());
             double tl = vectors[0].x, tr = tl, tb = vectors[0].y, tt = tb;
-            for (auto vec : vectors)
+            for (int i = 1; i < vectors.size(); i++)
             {
+                tVector &vec = vectors[i];
                 tl = std::min(tl, vec.x);
                 tr = std::max(tr, vec.x);
                 tb = std::min(tb, vec.y);
                 tt = std::max(tt, vec.y);
-                tempSet.insert(vec.normal_and_unify());
+                const tVector temp = (vectors[i] - vectors[i - 1]).normal_and_unify().keepDirectionWith(tVector(0.0, 1.0)).keepDirectionWith(tVector(1.0, 0.0));
+                tempSet.insert(temp);
             }
             ns = new std::vector<tVector>(tempSet.begin(), tempSet.end());
             l = static_cast<axisV>(tl);
@@ -520,4 +545,3 @@ CollisionBox::CollisionBox(std::vector<tVector>&& array, bool rotatable_ , const
         }
     }
 }
-

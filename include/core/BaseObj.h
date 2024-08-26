@@ -88,8 +88,8 @@ protected:
      * Initializes the collision box to nullptr.
      */
     EntityObj() : gObj(), clsnBox() {}
-    static const EntityType etype;
-
+    static const EntityType etype = EntityType::StableEntity;
+    virtual constexpr EntityType getEntityType() const { return etype; }
 public:
     /**
      * @brief Returns a reference to the collision box associated with the entity object.
@@ -140,7 +140,9 @@ public:
     }*/
     static void initObj(EntityObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl){
         gObj::initObj(pt, crd, angle_);
-        pt->clsnBox = std::move(cl);
+        if (pt->clsnBox.invalid()){
+            pt->clsnBox = std::move(cl);
+        }
     }
     /**
      * @brief Friend function to determine the collision type between two entity objects.
@@ -149,6 +151,11 @@ public:
      * @return CollisionType
      */
     friend inline constexpr CollisionType whatCollide(const EntityObj &b1, const EntityObj &b2);
+    static const bool is_an_Entity = true;
+    bool isEntity() const override{return is_an_Entity;}
+    std::string log()const {
+        return "gObj :\n\t" + gObj::log() + "\n    CollisionBox:\n\t" + clsnBox.log();
+    }
 };
 
 
@@ -158,7 +165,7 @@ inline bool isOuterIntersects(const EntityObj &b1, const EntityObj &b2)
 }
 inline constexpr CollisionType whatCollide(const EntityObj &b1, const EntityObj &b2)
 {
-    return WillCollide[static_cast<int>(b1.etype)][static_cast<int>(b2.etype)];
+    return WillCollide[static_cast<int>(b1.getEntityType())][static_cast<int>(b2.getEntityType())];
 }
 
 class ActObj : virtual public gObj
@@ -168,12 +175,15 @@ public:
     virtual void act() = 0;
     static void initObj(ActObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_){
         gObj::initObj(pt, crd, angle_);
+        pt->isSleeping = false;
     }
     template <typename managerT>
     static void newObj(managerT &m, const gMath::Crdinate &crd, const gMath::Angle &angle_){
         return basicObjInit<ActObj>(m, crd, angle_);
     }
-    bool isSleeping = true;
+    // 给MoveObj提供的接口
+    virtual int onOffTackler() {return 0;};
+
 };
 
 class DynamicActObj : virtual public ActObj
@@ -293,7 +303,7 @@ public:
         pt->velocity = initialVelocity;
         pt->acceleration = initialAccelr;
     }
-    const tVector &getVelocity() const
+    virtual const tVector &getVelocity() const
     {
         return velocity;
     }
@@ -314,15 +324,19 @@ public:
         if (!isSleeping){
             velocity += acceleration;
             crd += velocity;
-            moved = velocity.magnitude() >= MIN_VELOCITY_COUNT;
+            if (velocity.magnitude() >= MIN_VELOCITY_COUNT){
+                moved = true;
+            }
+            else if (!moved){
+                setSleep();
+            }
+            else moved = false;
         }
-        else
-            moved = false;
     }
-    bool isMoved() const{
-        return moved;
-    }
+    
     static const bool movable = true;
+
+    bool isMovable() const override{return movable;}
 };
 
 class RotateObj : virtual public ActObj
@@ -335,11 +349,22 @@ protected:
 
     // 旋转中心默认为坐标点
     RotateObj() : ActObj(), angleVelocity(0.0),angleAcceleration(0.0) {}
-
+    bool rotated = false;
 public:
+    
     void act() override
     {
-        angle += angleVelocity;
+        if (!isSleeping){
+            angleVelocity += angleAcceleration;
+            angle += angleVelocity;
+            if (angleVelocity >= MIN_ROTATION_VECLOCITY_COUNT){
+                rotated = true;
+            }
+            else if (!rotated){
+                setSleep();
+            }
+            else rotated = false;
+        }
     }
     template <typename managerT>
     static RotateObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_ = 0.0)
@@ -360,8 +385,8 @@ public:
         pt->angleAcceleration = angleA;
     }
     static const bool rotatable = true;
-
-    gMath::Angle getAngleVelocity() const
+    bool isRotatable() const override{return rotatable;}
+    virtual const gMath::Angle& getAngleVelocity() const
     {
         return angleVelocity;
     }
@@ -489,7 +514,7 @@ public:/*    template <typename managerT>
                             pt->dragAffected = dragAffected_;
                         }
     friend inline constexpr CollisionType whatCollide(const EntityObj &b1, const EntityObj &b2);
-    static const bool isEntity = true;
+    static const bool is_an_Entity = true;
     virtual void applyForceOnCenter(const gMath::tVector &force) = 0;
     virtual void applyImpulseOnCenter(const gMath::tVector &impulse) = 0;
     virtual void applyForceAtPoint(const gMath::tVector &force, const gMath::Crdinate &point) = 0;
@@ -515,11 +540,23 @@ public:/*    template <typename managerT>
     bool isDragAffected() const{
         return dragAffected;
     }
+    
     virtual void moveFix(const gMath::tVector&& ) = 0;
     virtual void rotateFix(const gMath::Angle&& ) = 0;
-    virtual double getInverseInertia() const {return 0.0;};
+    double getInverseInertia() const {return inverseInertia;};
+    double getInertia() const { return Inertia; }
     static void setPhysicsEngine(PhysicsEngine* p){
         mainPhysicsEngine = p;
+    }
+    virtual const gMath::tVector &getVelocity() const
+    {
+        static gMath::tVector velocity(0.0, 0.0);
+        return velocity;
+    }
+    virtual const gMath::Angle& getAngleVelocity() const
+    {
+        static gMath::Angle angleVelocity(0.0);
+        return angleVelocity;
     }
 protected:
     // 质量
@@ -534,7 +571,10 @@ protected:
     bool gravityAffected;
     // 是否受阻尼影响（不是摩擦力）
     bool dragAffected;
-
+    // 转动惯量
+    double Inertia = 0.0;
+    // 转动惯量的倒数
+    double inverseInertia = 0.0;
     static PhysicsEngine* mainPhysicsEngine;
 
     PhysicsObj() : EntityObj() {}

@@ -7,6 +7,8 @@
 #include <stack>
 #include <queue>
 #include <initializer_list>
+#include <string>
+#include "logger/logger.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -138,7 +140,9 @@ namespace gMath
             }
             return this->reverse();
         }
-        
+        std::string log() const{
+            return "(" + std::to_string(x) + "," + std::to_string(y) +")\n";
+        }
     };
     // 坐标类
     class Crdinate
@@ -191,6 +195,9 @@ namespace gMath
             y += static_cast<axisV>(v.y);
             return *this;
         }
+        std::string log() const{
+            return "(" + std::to_string(x) + "," + std::to_string(y) +")";
+        }
     };
     class mRectangle
     {
@@ -209,6 +216,10 @@ namespace gMath
         }
         bool Inside(const Crdinate& crd, const std::vector<tVector>* vs) const ;
         mRectangle& operator=(const mRectangle&) = default;
+
+        std::string log() const{
+            return "{ \n left = " + std::to_string(l) + ",\n right = " + std::to_string(r) + ",\n top = " + std::to_string(t) + ",\n bootom = " + std::to_string(b) +"}\n";
+        }
     };
     class Angle
     {
@@ -282,6 +293,7 @@ namespace gMath
         Angle &operator=(const Angle& r) = default;
         Angle(Angle&& r) = default;
         Angle(const Angle& r) = default;
+        std::string log() const{return std::to_string(degrees) ;} 
     private:
         double degrees;
         double radians;
@@ -309,6 +321,7 @@ namespace gMath
         void resetRadians(){
             radians = degreesToRadians(degrees);
         }
+        
     };
     // 无向图
     // bascially gpt-generated
@@ -408,6 +421,7 @@ namespace gMath
             adjacencyList[from].erase(to);
             adjacencyList[to].erase(from);
         }
+        
     private:
         std::unordered_map<T, std::unordered_set<T>> adjacencyList;
     };
@@ -429,7 +443,9 @@ namespace gMath
                 low += off;
                 high += off;
             }
-            
+            std::string log() const{
+                return "{ low = " + std::to_string(low) + ",\n toLowPoint = " + toLowPoint.log() + ",\n high = " + std::to_string(high) + ",\n toHighPoint = " + toHighPoint.log() +"}\n";
+            }
         };
 }
 

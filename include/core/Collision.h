@@ -31,7 +31,6 @@ namespace clsn
         // 当vectors容量为1时，则标志这是一个球形的碰撞箱，规定传入的向量在x轴正方向的投影为半径长
         // 当vectors容量为2时，标志这是一个线段碰撞箱，其中只有第一个向量有效，线段为由中心出发的向量和反向延伸的向量合成的
         std::vector<tVector> vectors;
-        std::vector<tVector> *vectors_p;
         // 所有边的法向量
         std::vector<tVector> *ns;
 
@@ -46,7 +45,7 @@ namespace clsn
         // 当vectors容量为1时，则标志这是一个球形的碰撞箱，规定传入的向量在x轴正方向的投影为半径长
         // 当vectors容量为2时，标志这是一个线段碰撞箱，其中只有第一个向量有效，线段为由中心出发的向量和反向延伸的向量合成的
         // anlge -- 初始旋转角度
-        CollisionBox(const std::vector<tVector> *array, bool rotatable_ = false,const Angle &angle = 0.0);
+        //     作废   CollisionBox(const std::vector<tVector> *array, bool rotatable_ = false,const Angle &angle = 0.0);
         CollisionBox(std::vector<tVector>&& array, bool rotatable_ = false, const Angle &angle = 0.0);
         // 投影范围，辅助SAT判定
         CollisionBox& operator=(CollisionBox&& cbox) = default;
@@ -66,10 +65,27 @@ namespace clsn
         // 粗检测
         friend inline bool isOuterIntersect(const Crdinate &crd1, const CollisionBox &b1, const Crdinate &crd2, const CollisionBox &b2);
         std::vector<tVector>* getShape(){
-            return vectors_p;
+            return &vectors;
         }
-        std::vector<tVector>* getShape_c() const{
-            return vectors_p;
+        const std::vector<tVector>* getShape_c() const{
+            return (const std::vector<tVector>*)&vectors;
+        }
+        std::string log()const {
+            switch (vectors.size())
+            {
+            case 0:
+                return "An error CollisionBox with 0 vectors!";
+            case 1:
+                return "A sphere CollisionBox";
+            case 2:
+                return "A line segment CollisionBox";
+            
+            default:
+                return "A polygon CollisionBox";
+            }
+        }
+        bool invalid() const {
+            return vectors.size() == 0;
         }
     };
     

@@ -32,12 +32,12 @@ double caculateInertia(double mass_, std::vector<gMath::tVector>* shape)
 
         for (size_t i = 0; i < shape->size(); i++) {
             size_t next = (i + 1) % shape->size();
-            double x1 = shape->at(i).x;
-            double y1 = shape->at(i).y;
-            double x2 = shape->at(next).x;
-            double y2 = shape->at(next).y;
+            const double x1 = shape->at(i).x;
+            const double y1 = shape->at(i).y;
+            const double x2 = shape->at(next).x;
+            const double y2 = shape->at(next).y;
 
-            double crossProduct = x1 * y2 - x2 * y1;
+            const double crossProduct = std::abs(x1 * y2 - x2 * y1);
             area += crossProduct;
 
             inertiaXX += (x1 * x1 + x2 * x1 + x2 * x2) * crossProduct;

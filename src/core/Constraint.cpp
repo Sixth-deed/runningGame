@@ -4,9 +4,7 @@
 #include "core/Collision.h"
 #include <cmath>
 
-wCstManager* Constraint::cstManager = nullptr;
-
-
+wCstManager *Constraint::cstManager = nullptr;
 
 void ContactConstraint::update()
 {
@@ -20,19 +18,29 @@ void ContactConstraint::update()
         {
         case 0:
             // Error
-        case 1:{
-            MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
+        case 1:
+        {
+            // PT_CAST   ETT -> MOVE
+            MoveObj *pt1 = dynamic_cast<MoveObj *>(ett1);
             if (!pt1->isSleep() && normal.dot(pt1->getVelocity()) < 0.0)
-                cstState = ConstraintState::Seperating;}
-        case 2:{
-            MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
+                cstState = ConstraintState::Seperating;
+            break;
+        }
+        case 2:
+        {
+            MoveObj *pt2 = dynamic_cast<MoveObj *>(ett2);
             if (!pt2->isSleep() && normal.dot(pt2->getVelocity()) > 0.0)
-                cstState = ConstraintState::Seperating;}
-        case 3:{
-            MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
-            MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
+                cstState = ConstraintState::Seperating;
+            break;
+        }
+        case 3:
+        {
+            MoveObj *pt1 = dynamic_cast<MoveObj *>(ett1);
+            MoveObj *pt2 = dynamic_cast<MoveObj *>(ett2);
             if (!(pt1->isSleep() && pt2->isSleep()) && (normal.dot(pt1->getVelocity() - pt2->getVelocity()) < 0.0))
-                cstState = ConstraintState::Seperating;}
+                cstState = ConstraintState::Seperating;
+            break;
+        }
         }
         break;
     case ConstraintState::Seperating:
@@ -47,24 +55,27 @@ void ContactConstraint::update()
             case 0:
                 // Error
             case 1:
-                {
-                MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
+            {
+                MoveObj *pt1 = dynamic_cast<MoveObj *>(ett1);
                 if (!pt1->isSleep() && normal.dot(pt1->getVelocity()) > 0.0)
                     cstState = ConstraintState::OnGoing;
-                }
+                break;
+            }
             case 2:
-                {
-                MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
+            {
+                MoveObj *pt2 = dynamic_cast<MoveObj *>(ett2);
                 if (!pt2->isSleep() && normal.dot(pt2->getVelocity()) < 0.0)
                     cstState = ConstraintState::OnGoing;
-                }
+                break;
+            }
             case 3:
-                {
-                MoveObj *pt1 = reinterpret_cast<MoveObj *>(ett1);
-                MoveObj *pt2 = reinterpret_cast<MoveObj *>(ett2);
+            {
+                MoveObj *pt1 = dynamic_cast<MoveObj *>(ett1);
+                MoveObj *pt2 = dynamic_cast<MoveObj *>(ett2);
                 if (!(pt1->isSleep() && pt2->isSleep()) && (normal.dot(pt1->getVelocity() - pt2->getVelocity()) > 0.0))
                     cstState = ConstraintState::OnGoing;
-                }
+                break;
+            }
             }
         }
         break;
@@ -78,30 +89,23 @@ void PhysicsContactConstraint::init()
     const double ivm1 = pt1->getInverseMass();
     const double ivm2 = pt2->getInverseMass();
 
-    const double ivI1 = pt1->rotatable ? reinterpret_cast<RotatePhysicsObj *>(pt1)->getInverseInertia() : 0.0;
-    const double ivI2 = pt2->rotatable ? reinterpret_cast<RotatePhysicsObj *>(pt2)->getInverseInertia() : 0.0;
+    const double ivI1 = pt1->getInverseInertia();
+    const double ivI2 = pt2->getInverseInertia();
     const double rn1 = toCp1.dot(tangent);
     const double rn2 = toCp2.dot(tangent);
     const double Knormal = ivm1 + ivm2 + rn1 * rn1 * ivI1 + rn2 * rn2 * ivI2;
-    normal_inv_effectiveMass = Knormal == 0 ? 1.0 / Knormal : 0.0;
+    normal_inv_effectiveMass = Knormal != 0 ? 1.0 / Knormal : 0.0;
 
     const double rt1 = toCp1.dot(normal);
     const double rt2 = toCp2.dot(normal);
     const double Ktangent = ivm1 + ivm2 + rt1 * rt1 * ivI1 + rt2 * rt2 * ivI2;
-    tangent_inv_effectiveMass = Ktangent == 0 ? 1.0 / Ktangent : 0.0;
-
-    const gMath::tVector &wv1 = pt1->rotatable ? toCp1.cross(reinterpret_cast<RotatePhysicsObj *>(pt1)->getAngleVelocity()) : gMath::tVector(0.0, 0.0);
-    const gMath::tVector &wv2 = pt2->rotatable ? toCp2.cross(reinterpret_cast<RotatePhysicsObj *>(pt2)->getAngleVelocity()) : gMath::tVector(0.0, 0.0);
-    const gMath::tVector &v1 = pt1->movable ? reinterpret_cast<MoveObj *>(pt1)->getVelocity() : gMath::tVector(0.0, 0.0);
-    const gMath::tVector &v2 = pt2->movable ? reinterpret_cast<MoveObj *>(pt2)->getVelocity() : gMath::tVector(0.0, 0.0);
-    dv = wv1 + v1 - wv2 - v2;
+    tangent_inv_effectiveMass = Ktangent != 0 ? 1.0 / Ktangent : 0.0;
+    renewDv();
 }
 
 void PhysicsContactConstraint::solve_v()
 {
     using namespace gMath;
-    ett1->CollisionAct(*ett2);
-    ett2->CollisionAct(*ett1);
 
     // 求解摩擦冲量
     const double tangentDv = tangent.dot(dv), normalDv = normal.dot(dv);
@@ -117,16 +121,17 @@ void PhysicsContactConstraint::solve_v()
         pt2->applyImpulse_v(impulse_t.reverse(), toCp2);
     }
     // 求解弹性冲量
-    double lambda_n = -normal_inv_effectiveMass * normalDv * restitution;
+    double lambda_n = normal_inv_effectiveMass * normalDv * restitution;
     const double n_otI = oldNormalImpulse;
     oldNormalImpulse = std::max(0.0, oldNormalImpulse + lambda_n);
     lambda_n = oldNormalImpulse - n_otI;
-    if (lambda_n > 0.0)
+    if (std::abs(lambda_n) > 0.0)
     {
         const tVector &impulse_n = normal * lambda_n;
-        pt1->applyImpulse_v(impulse_n, toCp1);
-        pt2->applyImpulse_v(impulse_n.reverse(), toCp2);
+        pt1->applyImpulse_v(impulse_n.reverse(), toCp1);
+        pt2->applyImpulse_v(impulse_n, toCp2);
     }
+    renewDv();
 }
 
 void PhysicsContactConstraint::solve_p()
@@ -166,7 +171,7 @@ SolveChain::~SolveChain()
     while (pt)
     {
         Constraint *next = pt->next;
-        pt -> release();
+        pt->release();
         pt = next;
     }
 }
@@ -193,7 +198,7 @@ void mVelAndPosSolver::solveAll()
     }
     for (int i = 0; i < vIterations; i++)
     {
-        PhysicsContactConstraint *pt = reinterpret_cast<PhysicsContactConstraint *>(head);
+        Constraint *pt = head;
         while (pt)
         {
             pt->solve_v();
@@ -204,7 +209,7 @@ void mVelAndPosSolver::solveAll()
 
     for (int i = 0; i < pIterations; i++)
     {
-        PhysicsContactConstraint *pt = reinterpret_cast<PhysicsContactConstraint *>(head);
+        Constraint *pt = head;
         while (pt)
         {
             pt->solve_p();

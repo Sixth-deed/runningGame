@@ -67,6 +67,10 @@ private:
     {
         return rect.Inside(pobj->getCrd());
     }
+    bool Inside(const EntityObj *pobj) const
+    {
+        return rect.Inside(pobj->getCrd());
+    }
     inline void reInsert(gObjType *pt);
 
 public:
@@ -88,7 +92,7 @@ public:
     */
     // 必须从细分类到粗分类调用
     // 返回当前仍可能需要更新的变量
-    std::unordered_set<MoveObj *> &frameUpDate(std::unordered_set<MoveObj *> &toUpdate, std::unordered_set<MoveObj *> &toRelease);
+    std::unordered_set<mID> &frameUpDate(std::unordered_set<mID> &toUpdate, std::unordered_set<mID> &toRelease);
     // 检测方格是否要分裂或者重新合并,如果需要, 执行相应操作
     void checkState();
     // 创建新根Grid
@@ -137,6 +141,17 @@ public:
         return rect;
     }
     static void setGridManager(GridManager<gObjType> *m) { mManager = m; }
+
+    std::string log() const
+    {   
+        return std::string("{\n") +  
+        "   gridID: " + std::to_string(gridID) +",\n "
+        #ifdef DEBUG 
+        "   rect: " + rect.log() + ",\n " +
+        #endif 
+        "   divided: " + std::to_string(divided) +  "\n" + 
+        "   objectCnt = " + std::to_string(mManager->getGridReferences(gridID).size()) + "\n}";
+    }
 };
 
 template <>
@@ -272,44 +287,79 @@ void Grid<gObjType>::collectFrom(const Grid<gObjType> *pGrid)
         insert(pObj.second);
     }
 }
-
+// 使用inline才能编译通过
 template <typename gObjType>
-std::unordered_set<MoveObj *> &Grid<gObjType>::frameUpDate(std::unordered_set<MoveObj *> &toUpdate, std::unordered_set<MoveObj *> &toRelease)
+inline std::unordered_set<mID> &Grid<gObjType>::frameUpDate(std::unordered_set<mID> &toUpdate, std::unordered_set<mID> &toRelease)
 {
-
-    for (auto pt : toUpdate)
+    std::unordered_set<mID> toErase;
+    for (mID id : toUpdate)
     {
-        if (count(pt->getID()))
+        if (count(id))
         {
-            if (Inside(pt))
-                toUpdate.erase(pt);
+            gObjType& obj = getObj(id);
+            if (Inside(&obj))
+                toErase.insert(id);
             else
             {
                 bool insideFlag = false;
                 for (auto &prt : ActiveRectangle::rects)
                 {
-                    if (prt->Inside(pt->getCrd()))
+                    if (prt->Inside(obj.getCrd()))
                     {
                         insideFlag = true;
                         break;
                     }
                 }
                 if (insideFlag)
-                    reInsert(reinterpret_cast<gObjType *>(pt));
-                else
-                    // MoveObj的方法
-                    if (pt->onOffTackler())
+                    reInsert(&obj);
+            }
+        }
+    }
+    for (mID id : toErase){
+        toUpdate.erase(id);
+    }
+    return toUpdate;
+}
+template <>
+inline std::unordered_set<mID> &Grid<ActObj>::frameUpDate(std::unordered_set<mID> &toUpdate, std::unordered_set<mID> &toRelease)
+{
+    std::unordered_set<mID> toErase;
+    for (mID id : toUpdate)
+    {
+        if (count(id))
+        {
+            ActObj& obj = getObj(id);
+            if (Inside(&obj))
+                toErase.insert(id);
+            else
+            {
+                bool insideFlag = false;
+                for (auto &prt : ActiveRectangle::rects)
+                {
+                    if (prt->Inside(obj.getCrd()))
                     {
-                        erase(pt->getID());
-                        toUpdate.erase(pt);
-                        toRelease.insert(pt);
+                        insideFlag = true;
+                        break;
+                    }
+                }
+                if (insideFlag)
+                    reInsert(&obj);
+                else
+                    // ActObj的虚方法，MoveObj具体实现，只有MoveObj会进入到这一步
+                    if (obj.onOffTackler())
+                    {
+                        erase(id);
+                        toErase.insert(id);
+                        toRelease.insert(id);
                     }
             }
         }
     }
+    for (mID id : toErase){
+        toUpdate.erase(id);
+    }
     return toUpdate;
 }
-
 template <typename gObjType>
 void Grid<gObjType>::checkState()
 {
@@ -451,5 +501,8 @@ bool Grid<gObjType>::recursionForInnerGrid(gObjType *pObj, bool (Grid<gObjType>:
     }
     return false;
 }
-
+template<>
+inline bool Grid<EntityObj>::Inside(const EntityObj *pt) const{
+    return rect.Inside( pt->getCrd() ,pt->get_c_CollisionBox().getShape_c());
+}
 #endif

@@ -10,7 +10,8 @@ private:
 public:
     const double GLOBAL_LINEAR_DAMPING = 0.01;
     const double GLOBAL_ANGULAR_DAMPING = 0.01;
-    const gMath::tVector GLOBAL_GRAVITY = gMath::tVector(0.0, -9.8);
+    //是每帧的
+    const gMath::tVector GLOBAL_GRAVITY = gMath::tVector(0.0, -0.1633333333);
     PhysicsEngine() : cstManager(new wCstManager()){ }
     ~PhysicsEngine() = default;
     PhysicsEngine(const double ld, const double ad, const gMath::tVector &g, wCstManager* cstmanager) : 

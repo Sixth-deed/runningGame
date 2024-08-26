@@ -28,10 +28,26 @@ protected:
     gObj(gMath::axisV x, gMath::axisV y, gMath::Angle angle_ = 0.0):crd(x,y), angle(angle_){}
     gObj(const gMath::Crdinate& cr,  gMath::Angle angle_ = 0.0):crd(cr), angle(angle_){}
     gObj(): crd(0,0),id(mIdHandler->getNewID()),angle(0.0) {}
-    //用来记录是否被遍历与更新，除了ActObj，其他类固定为false
-    bool isSleeping =false;
+    //用来记录是否被遍历与更新，除了ActObj，其他类固定为true
+    bool isSleeping =true;
 public:
-    
+    virtual std::string log()const {
+        std::string flagstring;
+        if (!flags.empty()){
+            flagstring = "flags = [";
+            for (auto f : flags){
+                flagstring += f + ",";
+            }
+            flagstring.pop_back();
+            flagstring += "]\n";
+        }
+        return "{\n\tid = " + std::to_string(id) + ",\n\t" +
+               "crd = " + crd.log() + ",\n\t" +
+               "angle = " + angle.log() + ",\n\t" +
+               "sleeping = " + std::to_string(isSleeping) + ",\n\t" + 
+               flagstring +
+               "}\n";
+    }
     //用于将关于这个对象的有用的额外信息传往前端
     std::vector<std::string> flags;
     //获得一个对象
@@ -68,7 +84,10 @@ public:
     }
     static const bool movable = false;
     static const bool rotatable = false;
-    static const bool isEntity = false;
+    static const bool is_an_Entity = false;
+    virtual bool isMovable() const {return movable;}
+    virtual bool isRotatable()  const {return rotatable;}
+    virtual bool isEntity() const {return is_an_Entity;}
     bool isSleep(){return isSleeping;}
     void setSleep(){isSleeping = true;}
     
