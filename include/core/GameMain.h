@@ -7,7 +7,6 @@
 #include "QuadTree.h"
 #include "Constraint.h"
 #include "PhysicsEngine.h"
-#include "GameObjects/gInstance.h"
 #include "GameObjects/allObjects.h"
 #include "logger/logger.h"
 #include <unordered_map>
@@ -51,7 +50,7 @@ template <typename ManagerT, typename... GridManagingGameObjTypes>
 class mGame : public mGameVirtualBase
 {
 protected:
-    std::unordered_map<mID, gInstance *> env;
+    std::unordered_map<mID, gObj *> env;
 
     ManagerT mainObjManager;
 
@@ -70,8 +69,7 @@ protected:
     {
         gObjType& obj = gObjType::newObj(mainObjManager, args...);
         bundle.toSend.push_back(&obj);
-        //此处限制了游戏运行时的具体对象一定是gInstance的子类对象
-        env.emplace(obj.getID(), static_cast<gInstance *> (&obj));
+        env.emplace(obj.getID(), static_cast<gObj *> (&obj));
         return obj;
     }
     template <typename gObjType>
@@ -194,7 +192,7 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::releaseObjs(std::unordered_se
 {
     for (mID id : toRelease)
     {
-        gInstance *pt = env[id];
+        gObj *pt = env[id];
         switch (pt->getType())
         {
         case mtype::gInstanceTypes::gInstance:

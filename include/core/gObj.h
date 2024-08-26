@@ -8,12 +8,29 @@
 #include "lib/idHandler.h"
 
 
+namespace mtype{
+    enum gInstanceTypes{
+       gInstance,
+       StableRectangleObj,
+       LiberalRectangleObj
+    };
+};
+
+#define DECLARE_INSTANCE_TYPE(TypeName)                \
+    protected:                                         \
+    static constexpr mtype::gInstanceTypes Type = mtype::gInstanceTypes::TypeName; \
+    public :                                           \
+    virtual constexpr mtype::gInstanceTypes getType() { return Type ; } \
+    private: 
+
+
+
 #define GRID_NEEDED
 #define PRIORITY_LEVEL0
 //游戏对象基类
 //规定了游戏对象的一些基本属性
 class gObj {
-    
+    DECLARE_INSTANCE_TYPE(gInstance)
 protected:
     static idHandler *mIdHandler;
     //友元类
@@ -123,5 +140,3 @@ inline gObjType& basicObjInit(managerT& m,const gMath::Crdinate& crd = gMath::Cr
     return gobj;
 }
 #endif 
-
-//sendpacktype函数用于发信后面的五项
