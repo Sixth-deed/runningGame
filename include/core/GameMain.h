@@ -285,5 +285,4 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
     }
 }
 
-// 可能用vector和list可以实现
 #endif

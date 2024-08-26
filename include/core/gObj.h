@@ -104,5 +104,3 @@ inline gObjType& basicObjInit(managerT& m,const gMath::Crdinate& crd = gMath::Cr
     return gobj;
 }
 #endif 
-
-//sendpacktype函数用于发信后面的五项
