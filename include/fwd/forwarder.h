@@ -12,6 +12,7 @@
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <set>
+#include <queue>
 #include <string>
 #include <functional>
 
@@ -20,7 +21,6 @@ typedef websocketpp::server<websocketpp::config::asio> server;
 using websocketpp::connection_hdl;
 using json = nlohmann::json;
 
-template<typename T>
 class WebSocketServer {
 public:
     WebSocketServer() {
@@ -34,9 +34,7 @@ public:
         m_server.set_close_handler(bind(&WebSocketServer::on_close, this, std::placeholders::_1));
 
         // 设置消息处理的回调函数
-        m_server.set_message_handler([this](connection_hdl hdl,server::message_ptr msg,const T& some_T){
-            this->on_message(hdl,msg,some_T);
-        });
+        m_server.set_message_handler(bind(&WebSocketServer::on_message, this, std::placeholders::_1, std::placeholders::_2));
     }
 
     void run(uint16_t port) {
@@ -62,19 +60,37 @@ public:
         m_connections.erase(hdl);
     }
 
-    void on_message(connection_hdl hdl, server::message_ptr msg,const T& some_T) {
+    
+
+    std::queue<std::string> mes_queue;
+    void on_message(connection_hdl hdl, server::message_ptr msg) {
         // 接收到消息时的处理
+        mes_queue.push(msg->get_payload());
         std::cout << "Received message: " << msg->get_payload() << std::endl;
 
+        
+    }
+
+    void send_mes(connection_hdl hdl,gObj& obj){
         // 创建 JSON 数据
         json j;
-        to_json(j,some_T);
+        to_json(j,obj);
 
         // 将 JSON 数据转换为字符串
         std::string json_str = j.dump();
 
         // 发送 JSON 数据到前端
         m_server.send(hdl, json_str, websocketpp::frame::opcode::text);
+    }
+
+    static void send_mes(connection_hdl hdl,gObj* pt){
+        get_server()->send_mes(hdl,pt);
+    }
+
+    static WebSocketServer* get_server(){
+        static WebSocketServer server;
+        server.run(9002);   //监听9002端口
+        return &server;
     }
 
 private:
@@ -98,7 +114,7 @@ void to_json(json& j,gObj& obj){
 
 
 int main() {
-    WebSocketServer<gObj> server;
+    WebSocketServer server;
     server.run(9002); // 监听 9002 端口
     return 0;
 }
