@@ -8,8 +8,8 @@ int main(){
     system("pwd");
     system("npm run dev");
     // 启动日志系统
-    Logger::getInstance().setLogFile("log/debug/debug_out.log");
-    Logger::getInstance().start();
+    mGameLogger::getInstance().setLogFile("log/debug/debug_out.log");
+    mGameLogger::getInstance().start();
     //初始化游戏
     mGameVirtualBase* game = testmapMap::initializeGame();
     //启动webSocket服务器,端口9002
@@ -19,7 +19,7 @@ int main(){
     // 让日志线程有机会处理日志队列
     std::this_thread::sleep_for(std::chrono::seconds(1));
     // 停止日志系统
-    Logger::getInstance().stop();
+    mGameLogger::getInstance().stop();
     sleep(100);
     if (vue_thread.joinable()){
         vue_thread.join();

@@ -18,7 +18,7 @@ enum class LogLevel
     _DEBUG,
     INFO,
     WARNING,
-    ERROR
+    mGameERROR
 };
 class LogFormatter
 {
@@ -57,7 +57,7 @@ private:
             return "INFO";
         case LogLevel::WARNING:
             return "WARNING";
-        case LogLevel::ERROR:
+        case LogLevel::mGameERROR:
             return "ERROR";
         default:
             return "UNKNOWN";
@@ -65,12 +65,12 @@ private:
     }
 };
 
-class Logger
+class mGameLogger
 {
 public:
-    static Logger &getInstance()
+    static mGameLogger &getInstance()
     {
-        static Logger instance;
+        static mGameLogger instance;
         return instance;
     }
 
@@ -100,7 +100,7 @@ public:
     void start()
     {
         running = true;
-        logThread = std::thread(&Logger::processQueue, this);
+        logThread = std::thread(&mGameLogger::processQueue, this);
     }
 
     void stop()
@@ -114,8 +114,8 @@ public:
     }
 
 private:
-    Logger() : running(false) {}
-    ~Logger()
+    mGameLogger() : running(false) {}
+    ~mGameLogger()
     {
         stop();
         if (fileStream.is_open())
@@ -186,7 +186,7 @@ private:
 };
 
 template <>
-inline void Logger::log(LogLevel level, const std::string &message, const std::string &file, int line)
+inline void mGameLogger::log(LogLevel level, const std::string &message, const std::string &file, int line)
 {
     std::string formattedMessage = LogFormatter::format(level, message, file, line);
     {
@@ -196,7 +196,7 @@ inline void Logger::log(LogLevel level, const std::string &message, const std::s
     cv.notify_one(); // 通知日志线程有新消息需要处理
 }
 template <>
-inline void Logger::debug_log(LogLevel level, const std::string &message, const std::string &file, int line)
+inline void mGameLogger::debug_log(LogLevel level, const std::string &message, const std::string &file, int line)
 {
     std::lock_guard<std::mutex> lock(fileMutex);
 
@@ -211,12 +211,12 @@ inline void Logger::debug_log(LogLevel level, const std::string &message, const 
 
 // 如果定义了 DEBUG 宏，则启用 LOG_DEBUG 宏
 #ifdef DEBUG
-#define LOG_DEBUG(message) Logger::getInstance().debug_log(LogLevel::_DEBUG, message, __FILE__, __LINE__)
+#define LOG_DEBUG(message) mGameLogger::getInstance().debug_log(LogLevel::_DEBUG, message, __FILE__, __LINE__)
 #else
 #define LOG_DEBUG(message) // 空定义，什么也不做
 #endif
-#define LOG_INFO(message) Logger::getInstance().log(LogLevel::INFO, message, __FILE__, __LINE__)
-#define LOG_WARNING(message) Logger::getInstance().debug_log(LogLevel::WARNING, message, __FILE__, __LINE__)
-#define LOG_ERROR(message) Logger::getInstance().log(LogLevel::ERROR, message, __FILE__, __LINE__)
+#define LOG_INFO(message) mGameLogger::getInstance().log(LogLevel::INFO, message, __FILE__, __LINE__)
+#define LOG_WARNING(message) mGameLogger::getInstance().debug_log(LogLevel::WARNING, message, __FILE__, __LINE__)
+#define LOG_ERROR(message) mGameLogger::getInstance().log(LogLevel::mGameERROR, message, __FILE__, __LINE__)
 
 #endif
