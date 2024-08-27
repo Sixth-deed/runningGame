@@ -66,7 +66,7 @@ def start(file_path):
     '''namespace mtype{
     enum gInstanceTypes{
         gInstance'''
-    end_mark="\n};"
+    end_mark="};"
     start_index = content.find(start_mark) + len(start_mark)
     end_index = content.find(end_mark, start_index)
     
@@ -77,7 +77,7 @@ def start(file_path):
     new_content = to_replace.replace(to_replace, class_names)
     
     # 拼接结果，替换原内容
-    result = content[:start_index] + new_content + content[end_index:]
+    result = content[:start_index] + new_content + '\n\t' + content[end_index:]
 
     write_file_content(result)
     print("gObj文件已经更新")
