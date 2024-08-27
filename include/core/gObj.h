@@ -13,7 +13,6 @@ namespace mtype{
         gInstance,
 		StableRectangleObj,
 		LiberalRectangleObj
-    };
 };
 
 #define DECLARE_INSTANCE_TYPE(TypeName)                \
