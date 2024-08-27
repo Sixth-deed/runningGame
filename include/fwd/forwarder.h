@@ -1,12 +1,5 @@
-//add your code here
-
-//定义sendpacktype类
-//覆盖对象坐标，对象id，对象角度，对象类型以及flags这几项
-
-//gobj.h将信号传递到gameMain.cpp
-
 #include "core/gObj.h"
-#include "core/GameMain.h"
+#include <cstdint>
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 #include <nlohmann/json.hpp>
@@ -15,12 +8,13 @@
 #include <queue>
 #include <string>
 #include <functional>
-#include <utility>
 
 typedef websocketpp::server<websocketpp::config::asio> server;
 
 using websocketpp::connection_hdl;
 using json = nlohmann::json;
+
+json to_json(const gObj& obj);
 
 class WebSocketServer {
 public:
@@ -51,13 +45,13 @@ public:
 
     void on_open(connection_hdl hdl) {
         // 连接打开时的处理
-        LOG_DEBUG (std::string("Connection opened") );
+//        LOG_DEBUG (std::string("Connection opened") );
         m_connections.insert(hdl);
     }
 
     void on_close(connection_hdl hdl) {
         // 连接关闭时的处理
-        LOG_DEBUG (std::string("Connection closed") );
+//        LOG_DEBUG (std::string("Connection closed") );
         m_connections.erase(hdl);
     }
 
@@ -73,7 +67,7 @@ public:
         // 接收到消息时的处理
         unsigned int mes = std::stoi(msg->get_payload());
         mes_queue.push(mes);
-        LOG_DEBUG ("Received message: " + msg->get_payload()) ;
+//        LOG_DEBUG ("Received message: " + msg->get_payload()) ;
     }
 
     static std::queue<unsigned int>& get_mes_queue(){
@@ -97,10 +91,11 @@ public:
             get_server()->send_mes(hdl,pt);
         }
     }
-
+    static void initServer(uint16_t port){
+        get_server()->run(port);
+    }
     static WebSocketServer* get_server(){
         static WebSocketServer server;
-        server.run(9002);   //监听9002端口
         return &server;
     }
 
@@ -109,7 +104,7 @@ private:
     std::set<connection_hdl, std::owner_less<connection_hdl>> m_connections;
 };
 
-json to_json(const gObj& obj){
+inline json to_json(const gObj& obj){
     json tmep_j =json {
         {"x", obj.getCrd().get_x()},
         {"y", obj.getCrd().get_y()},
@@ -120,6 +115,6 @@ json to_json(const gObj& obj){
     for (auto &flag : obj.flags) {
         tmep_j["flags"].push_back(flag);
     }
-    return std::move(tmep_j);
+    return tmep_j;
 }
 

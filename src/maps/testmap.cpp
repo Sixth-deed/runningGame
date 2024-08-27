@@ -1,7 +1,7 @@
 #include "core/GameMain.h"
 #include "GameObjects/RectangleObject.h"
 #include "maps.h"
-#include "logger/logger.h"
+#include "mlogger/logger.h"
 template class Grid<gObj>;
 template class Grid<EntityObj>;
 template class Grid<ActObj>;

@@ -75,12 +75,9 @@ public:
 
     void solveAll();
     void updateAll();
-    void renewDvFor(EntityObj* ett){
-        for (auto& pair : cstGraph[ett]){
-            Constraint* const cst = pair.second;
-            cst->reNewDv();
-        }
-    }
+
+    //提供给VelAndPosConstraint使用
+    void renewDvFor(EntityObj* ett);
 };
 
 class wCstManager : public ConstraintManager<ContactConstraint ,NormalContactConstraint, PhysicsContactConstraint>
@@ -275,6 +272,13 @@ inline void PhysicsContactConstraint::release()
     
     cstManager->releaseConstraint(this);
 }
+template <typename... Ts>
+inline  void ConstraintManager<Ts...>::renewDvFor(EntityObj* ett){
+        for (auto& pair : cstGraph[ett]){
+            Constraint* const cst = pair.second;
+            cst->reNewDv();
+        }
+    }
 
 inline void Constraint::initializeConstraint(EntityObj *const ett1_, EntityObj *const ett2_)
 {
