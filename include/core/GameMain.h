@@ -9,6 +9,7 @@
 #include "PhysicsEngine.h"
 #include "GameObjects/allObjects.h"
 #include "logger/logger.h"
+#include "fwd/forwarder.h"
 #include <unordered_map>
 #include <utility>
 #include <algorithm>
@@ -24,7 +25,7 @@
 struct gameLoopBundle
 {
     int numOfActiveMoveObj;
-    std::vector<gObj*> toSend;
+    std::vector<gObj *> toSend;
     gameLoopBundle() : numOfActiveMoveObj(1), toSend() {}
 };
 
@@ -35,9 +36,9 @@ public:
     virtual void GameLoop() = 0;
     virtual ~mGameVirtualBase() = default;
 
-    #ifdef DEBUG
+#ifdef DEBUG
     virtual void printEntityGrids() = 0;
-    #endif
+#endif
 };
 /*
 游戏实例基类
@@ -67,9 +68,9 @@ protected:
     template <typename gObjType, typename... Args>
     gObjType &newObj(Args... args)
     {
-        gObjType& obj = gObjType::newObj(mainObjManager, args...);
+        gObjType &obj = gObjType::newObj(mainObjManager, args...);
         bundle.toSend.push_back(&obj);
-        env.emplace(obj.getID(), static_cast<gObj *> (&obj));
+        env.emplace(obj.getID(), static_cast<gObj *>(&obj));
         return obj;
     }
     template <typename gObjType>
@@ -95,8 +96,17 @@ protected:
 
     void initilizeGridMangerRfr();
 
-    
     gameLoopBundle bundle;
+
+    enum GameState
+    {
+        RUNNING,
+        PAUSED,
+        TO_QUIT
+    };
+
+    GameState gameState = RUNNING;
+
 public:
     ~mGame();
     // 初始化游戏
@@ -116,11 +126,10 @@ public:
         return std::tuple<Grid<GridManagingGameObjTypes> *...>(Grid<GridManagingGameObjTypes>::newGrid(rect)...);
     }
     void GameLoop();
-
-    #ifdef DEBUG
+    void solveServerMessages();
+#ifdef DEBUG
     void printEntityGrids();
-    #endif
-
+#endif
 };
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 void mGame<ManagerT, GridManagingGameObjTypes...>::deleteActiveGridsRef()
@@ -200,11 +209,11 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::releaseObjs(std::unordered_se
             LOG_ERROR(std::string("cannot use instance object!"));
             break;
         case mtype::gInstanceTypes::StableRectangleObj:
-            //PT_CAST
+            // PT_CAST
             mainObjManager.release(dynamic_cast<StableRectangleObj *>(pt));
             break;
         case mtype::gInstanceTypes::LiberalRectangleObj:
-            //PT_CAST
+            // PT_CAST
             mainObjManager.release(dynamic_cast<LiberalRectangleObj *>(pt));
             break;
         }
@@ -239,34 +248,35 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
 #endif
     while (true)
     {
-        std::unordered_set<mID> toUpdate(bundle.numOfActiveMoveObj * 2);
-        std::unordered_set<mID> toRelease(3);
-        auto start = std::chrono::steady_clock::now();
-
-        for (Grid<ActObj> *actobjGrid_p : *(activeGrids<ActObj>()))
+        if (gameState == RUNNING)
         {
-            actobjGrid_p->forEachInGrid([&toUpdate](ActObj *actObj_p)
-                                        {
+            std::unordered_set<mID> toUpdate(bundle.numOfActiveMoveObj * 2);
+            std::unordered_set<mID> toRelease(3);
+            auto start = std::chrono::steady_clock::now();
+
+            for (Grid<ActObj> *actobjGrid_p : *(activeGrids<ActObj>()))
+            {
+                actobjGrid_p->forEachInGrid([&toUpdate](ActObj *actObj_p)
+                                            {
                  actObj_p->act();
                  if (actObj_p ->isMovable() && !actObj_p->isSleep()){
                     toUpdate.insert(actObj_p->getID());
                  } });
-        }
-        updateActiveGrids();
-        std::unordered_set<mID> toupdateReference(toUpdate.begin(), toUpdate.end());
-        ActiveGridsRefernceUpdate(toupdateReference, toRelease);
-        releaseObjs(toRelease);
+            }
+            updateActiveGrids();
+            std::unordered_set<mID> toupdateReference(toUpdate.begin(), toUpdate.end());
+            ActiveGridsRefernceUpdate(toupdateReference, toRelease);
+            releaseObjs(toRelease);
 
-
-        #ifdef DEBUG
-     //   LOG_DEBUG(str("in GameLoop EntityGrids: \n\t"));
- //       printEntityGrids();
-        #endif
-        // 约束修正
-        for (Grid<EntityObj> *ettobjGrid_p : *(activeGrids<EntityObj>()))
-        {
-            ettobjGrid_p->forEachInGrid([&toUpdate, ettobjGrid_p, this](EntityObj *ettObj_p)
-                                        {
+#ifdef DEBUG
+            //   LOG_DEBUG(str("in GameLoop EntityGrids: \n\t"));
+            //       printEntityGrids();
+#endif
+            // 约束修正
+            for (Grid<EntityObj> *ettobjGrid_p : *(activeGrids<EntityObj>()))
+            {
+                ettobjGrid_p->forEachInGrid([&toUpdate, ettobjGrid_p, this](EntityObj *ettObj_p)
+                                            {
         auto& mainEngine = this->mainEngine;
             if (ettObj_p->isMovable()){
                 if (toUpdate.count(ettObj_p->getID())){
@@ -276,75 +286,90 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
                     });
                 }
             } });
-        }
-        mainEngine->getCstManager()->updateAll();
-        mainEngine->getCstManager()->solveAll();
-        /*
-        // 处理接收到的操作
-        auto commandQueue = aquireCommandBuffer();
-        while (!commandQueue.empty())
-        {
-            auto &command = commandQueue.top();
-            commandQueue.pop();
-            command.solve();
-        }
-        */
+            }
+            mainEngine->getCstManager()->updateAll();
+            mainEngine->getCstManager()->solveAll();
+
+            solveServerMessages();
+
 #ifdef GAME_LOOP_LOG
 #ifdef DEBUG
-if ((frameCount++) %30 == 0){
-        LOG_DEBUG("FrameCount: " + std::to_string(frameCount) +"\n");
-        for (gObj* gObj_p : bundle.toSend ){
-            LOG_DEBUG("A game object:" + gObj_p->log());
-        }
-    }
+            if ((frameCount++) % 30 == 0)
+            {
+                LOG_DEBUG("FrameCount: " + std::to_string(frameCount) + "\n");
+                for (auto &pair : env)
+                {
+                    LOG_DEBUG("A game object:" + pair.second->log());
+                }
+            }
 #else
-if ((frameCount++) % 60 == 0){
-        LOG_INFO("FrameCount:" + std::to_string(frameCount) +" !\n");
-        for (gObj* gObj_p : bundle.toSend ){
-            LOG_INFO("A game object:" + gObj_p->log());
-        }
-    }
-#endif  
+            if ((frameCount++) % 60 == 0)
+            {
+                LOG_INFO("FrameCount:" + std::to_string(frameCount) + " !\n");
+                for (gObj *gObj_p : bundle.toSend)
+                {
+                    LOG_INFO("A game object:" + gObj_p->log());
+                }
+            }
 #endif
-/*
-        // 向前端发信
+#endif
 
-        //通过bundle.toSend获取要发送的对象
-        
-        //只发送改变了位置或状态(flags)的对象
-        gObjContainer toSend;
-        SendPackContainer mesContainer
+            for (gObj *gobj : bundle.toSend)
+            {
+                WebSocketServer::send_obj(gobj);
+            }
+            bundle.toSend.clear();
 
-        for (auto gobj : toSend){
-            gobj.send(mesContainer);
+            auto end = std::chrono::steady_clock::now();
+            auto elasped = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+            if (elasped < clocksPerFrame)
+                std::this_thread::sleep_for(clocksPerFrame - elasped);
         }
-        // 交给webSocket模块处理容器
-        // 在code/fwd/ 目录下实现收发细节
-        webSend(mesContainer);
-
-        //这只是一个示例，可以通过别的方法实现，比如在obj的send函数里就直接调用websocket的收发
-
-*/
-
-        auto end = std::chrono::steady_clock::now();
-        auto elasped = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        if (elasped < clocksPerFrame)
-            std::this_thread::sleep_for(clocksPerFrame - elasped);
+        else if (gameState == PAUSED)
+        {
+            solveServerMessages();
+        }
+        else if (gameState == TO_QUIT)
+        {
+            break;
+        }
     }
 }
 
-
-
+template <typename ManagerT, typename... GridManagingGameObjTypes>
+inline void mGame<ManagerT, GridManagingGameObjTypes...>::solveServerMessages()
+{
+    std::queue<unsigned int> &msgQueue = WebSocketServer::get_mes_queue();
+    while (!msgQueue.empty())
+    {
+        unsigned int command = msgQueue.front();
+        switch (command)
+        {
+        case 0:
+            gameState = GameState::PAUSED;
+            break;
+        case 1:
+            gameState = GameState::RUNNING;
+            break;
+        case 2:
+            gameState = GameState::TO_QUIT;
+            break;
+        default:
+            break;
+        }
+        msgQueue.pop();
+    }
+}
 
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 inline void mGame<ManagerT, GridManagingGameObjTypes...>::printEntityGrids()
 {
     for (Grid<EntityObj> *ettobjGrid_p : *(activeGrids<EntityObj>()))
     {
-        LOG_DEBUG("EntityGrid: \n\t" + ettobjGrid_p->log()+ "\n");
+        LOG_DEBUG("EntityGrid: \n\t" + ettobjGrid_p->log() + "\n");
         LOG_DEBUG(std::string("Objs in grid: \n\t"));
         ettobjGrid_p->forEachInGrid([](EntityObj *ettObj_p)
-                                    { LOG_DEBUG("EntityObj: \n\t" + ettObj_p->log()+ "\n"); });
+                                    { LOG_DEBUG("EntityObj: \n\t" + ettObj_p->log() + "\n"); });
     }
 }
 #endif

@@ -5,8 +5,8 @@
 
 //gobj.h将信号传递到gameMain.cpp
 
-#include "gObj.h"
-#include "GameMain.h"
+#include "core/gObj.h"
+#include "core/GameMain.h"
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 #include <nlohmann/json.hpp>
@@ -15,6 +15,7 @@
 #include <queue>
 #include <string>
 #include <functional>
+#include <utility>
 
 typedef websocketpp::server<websocketpp::config::asio> server;
 
@@ -50,31 +51,39 @@ public:
 
     void on_open(connection_hdl hdl) {
         // 连接打开时的处理
-        std::cout << "Connection opened" << std::endl;
+        LOG_DEBUG (std::string("Connection opened") );
         m_connections.insert(hdl);
     }
 
     void on_close(connection_hdl hdl) {
         // 连接关闭时的处理
-        std::cout << "Connection closed" << std::endl;
+        LOG_DEBUG (std::string("Connection closed") );
         m_connections.erase(hdl);
     }
 
-    
+    //c++的switch只能使用数值类型
+    //因此msg的类型信息需要靠前端和后端约定
+    //暂时假设这样3个消息
+    // 0. 暂停
+    // 1. 恢复
+    // 2. 退出游戏
 
-    std::queue<std::string> mes_queue;
+    std::queue<unsigned int> mes_queue;
     void on_message(connection_hdl hdl, server::message_ptr msg) {
         // 接收到消息时的处理
-        mes_queue.push(msg->get_payload());
-        std::cout << "Received message: " << msg->get_payload() << std::endl;
-
-        
+        unsigned int mes = std::stoi(msg->get_payload());
+        mes_queue.push(mes);
+        LOG_DEBUG ("Received message: " + msg->get_payload()) ;
     }
 
-    void send_mes(connection_hdl hdl,gObj& obj){
+    static std::queue<unsigned int>& get_mes_queue(){
+        return get_server()->mes_queue;
+    }
+
+
+    void send_mes(connection_hdl hdl,gObj* obj){
         // 创建 JSON 数据
-        json j;
-        to_json(j,obj);
+        json j = to_json(*obj);
 
         // 将 JSON 数据转换为字符串
         std::string json_str = j.dump();
@@ -83,8 +92,10 @@ public:
         m_server.send(hdl, json_str, websocketpp::frame::opcode::text);
     }
 
-    static void send_mes(connection_hdl hdl,gObj* pt){
-        get_server()->send_mes(hdl,pt);
+    static void send_obj(gObj* pt){
+        for (auto &hdl : get_server()->m_connections) {
+            get_server()->send_mes(hdl,pt);
+        }
     }
 
     static WebSocketServer* get_server(){
@@ -98,23 +109,17 @@ private:
     std::set<connection_hdl, std::owner_less<connection_hdl>> m_connections;
 };
 
-void to_json(json& j,gObj& obj){
-    j = json{
-        {"crdinate_x", obj.getCrd().get_x()},
-        {"crdinate_y", obj.getCrd().get_y()},
+json to_json(const gObj& obj){
+    json tmep_j =json {
+        {"x", obj.getCrd().get_x()},
+        {"y", obj.getCrd().get_y()},
         {"id", obj.getID()},
-        {"angle_deg", obj.getAngle().getDegrees()},
-        {"angle_rad", obj.getAngle().getRadians()},
+        {"angle", obj.getAngle().getDegrees()},
         {"type", std::to_string(static_cast<int>(obj.getType()))},
-        {"flags",obj.flags}
     };
+    for (auto &flag : obj.flags) {
+        tmep_j["flags"].push_back(flag);
+    }
+    return std::move(tmep_j);
 }
 
-//add other to_json functions...
-
-
-int main() {
-    WebSocketServer server;
-    server.run(9002); // 监听 9002 端口
-    return 0;
-}

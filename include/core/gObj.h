@@ -20,7 +20,7 @@ namespace mtype{
     protected:                                         \
     static constexpr mtype::gInstanceTypes Type = mtype::gInstanceTypes::TypeName; \
     public :                                           \
-    virtual constexpr mtype::gInstanceTypes getType() { return Type ; } \
+    virtual constexpr mtype::gInstanceTypes getType() const { return Type ; } \
     private: 
 
 
