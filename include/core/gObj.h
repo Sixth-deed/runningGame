@@ -10,9 +10,9 @@
 
 namespace mtype{
     enum gInstanceTypes{
-       gInstance,
-       StableRectangleObj,
-       LiberalRectangleObj
+        gInstance,
+		StableRectangleObj,
+		LiberalRectangleObj
     };
 };
 

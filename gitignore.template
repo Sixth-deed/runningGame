@@ -1,8 +1,0 @@
-#请修改这个文件以忽视你的目录的一些更改
-
-.gitignore
-.vscode/
-build/
-bin/
-log/
-Makefile
