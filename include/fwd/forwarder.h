@@ -61,10 +61,13 @@ public:
         std::cout << "Connection closed" << std::endl;
         m_connections.erase(hdl);
     }
-
+    queue<std::string> mes_queue;
     void on_message(connection_hdl hdl, server::message_ptr msg,const T& some_T) {
         // 接收到消息时的处理
         std::cout << "Received message: " << msg->get_payload() << std::endl;
+
+        
+
 
         // 创建 JSON 数据
         json j;
@@ -76,7 +79,17 @@ public:
         // 发送 JSON 数据到前端
         m_server.send(hdl, json_str, websocketpp::frame::opcode::text);
     }
-
+    void send(const T& obj){
+        
+    }
+    static void send(gObj* pt){
+        getServer()->send(pt);
+    }
+    static WebSocketServer getServer(){
+        static WebSocketServer<T> server;
+        server.run(9002); // 监听 9002 端口
+        return server;
+    }
 private:
     server m_server;
     std::set<connection_hdl, std::owner_less<connection_hdl>> m_connections;
@@ -99,6 +112,6 @@ void to_json(json& j,gObj& obj){
 
 int main() {
     WebSocketServer<gObj> server;
-    server.run(9002); // 监听 9002 端口
+    
     return 0;
 }

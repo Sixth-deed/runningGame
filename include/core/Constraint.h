@@ -54,7 +54,7 @@ class ConstraintManager
 protected:
     std::stack<PhysicsObj *> toIntegrate;
     ObjectManager<cstTypes...> cstAllocManager;
-    gMath::Graph <EntityObj*> cstGraph;
+    gMath::Graph <EntityObj*, Constraint*> cstGraph;
 
     SolveChain* chains[(size_t)SolverType::SolverTypeCnt];
 public:
@@ -64,7 +64,7 @@ public:
     void releaseConstraint(cstType *cst);
     inline void integrateAll();
     ConstraintManager(); 
-    ConstraintManager(ObjectManager<cstTypes...> &cstAllocManager_, gMath::Graph <EntityObj*>&& cstGraph_) : cstAllocManager(cstAllocManager_), cstGraph(cstGraph_) {}
+    ConstraintManager(ObjectManager<cstTypes...> &cstAllocManager_, gMath::Graph <EntityObj*,Constraint*>&& cstGraph_) : cstAllocManager(cstAllocManager_), cstGraph(cstGraph_) {}
     void addObjToIntegrateList(PhysicsObj *obj);
     void checkAndUpdate(EntityObj* ett1p, EntityObj* ett2p);
     void clear();
@@ -75,6 +75,12 @@ public:
 
     void solveAll();
     void updateAll();
+    void renewDvFor(EntityObj* ett){
+        for (auto& pair : cstGraph[ett]){
+            Constraint* const cst = pair.second;
+            cst->reNewDv();
+        }
+    }
 };
 
 class wCstManager : public ConstraintManager<ContactConstraint ,NormalContactConstraint, PhysicsContactConstraint>
@@ -133,6 +139,8 @@ public:
     //给VelAndPosSolver调用的接口
     virtual void solve_v() {}
     virtual void solve_p() {}
+    virtual void warmStart(){}
+    virtual void reNewDv() {};
 };
 
 
@@ -206,6 +214,7 @@ public:
     PhysicsContactConstraint(EntityObj *ett1_, EntityObj *ett2_, const gMath::tVector &&t1cp_, const gMath::tVector &&t2cp_, const gMath::tVector &&normal_);
     void solve_v() override;
     void solve_p() override;
+    void warmStart() override;
     void init();
     void release();
     
@@ -250,8 +259,10 @@ public :
 ////////////////////
 inline void ContactConstraint::solve()
 {
-    ett1->CollisionAct(*ett2);
-    ett2->CollisionAct(*ett1);
+    if ( cstState == ConstraintState::OnGoing){
+        ett1->CollisionAct(*ett2);
+        ett2->CollisionAct(*ett1);
+    }
 }
 inline void NormalContactConstraint::release()
 {
@@ -294,7 +305,8 @@ inline void ConstraintManager<cstTypes...>::releaseConstraint(cstType *cst)
     else
     {
         chains[cstType::solverType]->head = cst->next;
-        cst->next->prev = nullptr;
+        if (cst->next != nullptr)
+            cst->next->prev = nullptr;
     }
     cstGraph.removeEdge(cst->ett1, cst->ett2);
     cstAllocManager.template release<cstType>(cst);
@@ -318,7 +330,7 @@ inline cstType *ConstraintManager<cstTypes...>::newConstraint(Args... args)
     pt->next = chains[cstType::solverType]->head;
     chains[cstType::solverType]->head = pt;
 
-    cstGraph.addEdge(pt->ett1, pt->ett2);
+    cstGraph.addEdge(pt->ett1, pt->ett2, pt);
     return pt;
 }
 
@@ -461,8 +473,8 @@ void ConstraintManager<cstTypes...>::updateAll()
 
 inline void PhysicsContactConstraint::renewDv()
 {
-    const gMath::tVector &wv1 = toCp1.cross((pt1)->getAngleVelocity().getDegrees());
-    const gMath::tVector &wv2 = toCp2.cross((pt2)->getAngleVelocity().getDegrees());
+    const gMath::tVector &wv1 = toCp1.cross((pt1)->getAngleVelocity());
+    const gMath::tVector &wv2 = toCp2.cross((pt2)->getAngleVelocity());
     const gMath::tVector &v1 = pt1->getVelocity();
     const gMath::tVector &v2 = pt2->getVelocity();
     dv = wv1 + v1 - wv2 - v2;
