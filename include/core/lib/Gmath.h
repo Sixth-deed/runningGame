@@ -273,7 +273,7 @@ namespace gMath
         Angle &operator+=(const Angle &other)
         {
             degrees += other.degrees;
-            resetRadians();
+            normalize();
             return *this;
         }
         bool operator!=(const Angle &r) const
@@ -287,6 +287,7 @@ namespace gMath
         Angle &operator *=(double a){
             degrees *= a;
             radians *= a;
+            normalize();
             return *this;
         }
         Angle &operator=(Angle&& r) = default;
@@ -305,6 +306,7 @@ namespace gMath
             {
                 degrees += 360.0;
             }
+            resetRadians();
         }
 
         // 辅助函数：度数转弧度
@@ -325,7 +327,7 @@ namespace gMath
     };
     // 无向图
     // bascially gpt-generated
-    template <typename T>
+    /*template <typename T>
     class Graph
     {
     public:
@@ -425,6 +427,105 @@ namespace gMath
     private:
         std::unordered_map<T, std::unordered_set<T>> adjacencyList;
     };
+    
+    */
+    template <typename T, typename EgdeT>
+    class Graph
+    {
+    public:
+        Graph() = default;
+        void addNode(const T &value)
+        {
+            if (adjacencyList.find(value) == adjacencyList.end())
+            {
+                adjacencyList[value] = std::unordered_map<T, EgdeT>();
+            }
+        }
+
+        void addEdge(const T &from, const T &to, const EgdeT &edge)
+        {
+            addNode(from);
+            addNode(to);
+            adjacencyList[from].emplace(to, edge);
+            adjacencyList[to].emplace(from, edge);
+        }
+        template <typename FunctionT>
+        void bfs(const T &start, FunctionT f)
+        {
+            std::unordered_set<T> visited;
+            std::queue<T> q;
+            q.push(start);
+            visited.insert(start);
+
+            while (!q.empty())
+            {
+                T node = q.front();
+                q.pop();
+                f(node);
+
+                for (const T &neighbor : adjacencyList[node])
+                {
+                    if (visited.find(neighbor) == visited.end())
+                    {
+                        visited.insert(neighbor);
+                        q.push(neighbor);
+                    }
+                }
+            }
+        }
+        template <typename FunctionT>
+        void dfs(const T &start, FunctionT f)
+        {
+            std::unordered_set<T> visited;
+            std::stack<T> s;
+            s.push(start);
+            visited.insert(start);
+
+            while (!s.empty())
+            {
+                T node = s.top();
+                s.pop();
+                f(node);
+
+                for (const T &neighbor : adjacencyList[node])
+                {
+                    if (visited.find(neighbor) == visited.end())
+                    {
+                        visited.insert(neighbor);
+                        s.push(neighbor);
+                    }
+                }
+            }
+        }
+
+        bool containsNode(const T &value) const
+        {
+            return adjacencyList.find(value) != adjacencyList.end();
+        }
+
+        bool containsEdge(const T &from, const T &to) const
+        {
+            if (adjacencyList.find(from) != adjacencyList.end())
+            {
+                return adjacencyList.at(from).find(to) != adjacencyList.at(from).end();
+            }
+            return false;
+        }
+        std::unordered_map<T,EgdeT>& operator[](const T& key){
+            return adjacencyList[key];
+        }
+
+        void removeEdge(const T& from, const T& to){
+            adjacencyList[from].erase(to);
+            adjacencyList[to].erase(from);
+        }
+        
+    private:
+        std::unordered_map<T, std::unordered_map<T, EgdeT>> adjacencyList;
+    };
+    
+    
+    
     struct Projection
         {
             double low;

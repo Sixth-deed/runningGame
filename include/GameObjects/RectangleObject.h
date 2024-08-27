@@ -38,7 +38,7 @@ class LiberalRectangleObj : public LiberalPhysicsObj
 public:
     static void initObj(LiberalPhysicsObj *t, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &&cl,
                         double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_,
-                        const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0,
+                        const double angleV = 0.0, const double angleA = 0.0,
                         const gMath::tVector &initialVelocity = gMath::tVector(0.0, 0.0), const gMath::tVector &initialAccelr = gMath::tVector(0.0, 0.0))
     {
         LiberalPhysicsObj::initObj(t, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, initialVelocity, initialAccelr);
@@ -46,7 +46,7 @@ public:
     template <typename managerT>
     static LiberalRectangleObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, const gMath::tVector &toLeftTop,
                                        double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_,
-                                       const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0,
+                                       const double angleV = 0.0, const double angleA = 0.0,
                                        const gMath::tVector &initialVelocity = gMath::tVector(0.0, 0.0), const gMath::tVector &initialAccelr = gMath::tVector(0.0, 0.0))
     {
         LiberalRectangleObj &to = *(m.template acquire<LiberalRectangleObj>());

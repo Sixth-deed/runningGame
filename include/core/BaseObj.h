@@ -343,9 +343,9 @@ class RotateObj : virtual public ActObj
 {
 protected:
     // 角速度
-    gMath::Angle angleVelocity;
+    double angleVelocity;
     // 角加速度
-    gMath::Angle angleAcceleration;
+    double angleAcceleration;
 
     // 旋转中心默认为坐标点
     RotateObj() : ActObj(), angleVelocity(0.0),angleAcceleration(0.0) {}
@@ -372,33 +372,33 @@ public:
         return basicObjInit<RotateObj>(m, crd, angle_);
     }
     template <typename managerT, typename IteratorType>
-    static RotateObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0)
+    static RotateObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, const double angleV = 0.0, const double angleA = 0.0)
     {
         RotateObj &t = basicObjInit<MoveObj>(m, crd, angle_);
         t.angleVelocity = angleV;
         t.angleAcceleration = angleA;
         return t;
     }
-    static void initObj(RotateObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0){
+    static void initObj(RotateObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, const double angleV = 0.0, const double angleA = 0.0){
         ActObj::initObj(pt, crd, angle_);
         pt->angleVelocity = angleV;
         pt->angleAcceleration = angleA;
     }
     static const bool rotatable = true;
     bool isRotatable() const override{return rotatable;}
-    virtual const gMath::Angle& getAngleVelocity() const
+    virtual double getAngleVelocity() const
     {
         return angleVelocity;
     }
-    void setAngleVelocity(const gMath::Angle &a)
+    void setAngleVelocity(const double a)
     {
         angleVelocity = a;
     }
-    gMath::Angle getAngleAcceleration() const
+    double getAngleAcceleration() const
     {
         return angleAcceleration;
     }
-    void setAngleAcceleration(const gMath::Angle &a)
+    void setAngleAcceleration(const double a)
     {
         angleAcceleration = a;
     }
@@ -553,10 +553,9 @@ public:/*    template <typename managerT>
         static gMath::tVector velocity(0.0, 0.0);
         return velocity;
     }
-    virtual const gMath::Angle& getAngleVelocity() const
+    virtual double getAngleVelocity() const
     {
-        static gMath::Angle angleVelocity(0.0);
-        return angleVelocity;
+        return 0.0;
     }
 protected:
     // 质量

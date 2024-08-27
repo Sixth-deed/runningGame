@@ -291,7 +291,7 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
         */
 #ifdef GAME_LOOP_LOG
 #ifdef DEBUG
-if ((frameCount++) % 30 == 0){
+if ((frameCount++) %30 == 0){
         LOG_DEBUG("FrameCount: " + std::to_string(frameCount) +"\n");
         for (gObj* gObj_p : bundle.toSend ){
             LOG_DEBUG("A game object:" + gObj_p->log());
@@ -309,7 +309,8 @@ if ((frameCount++) % 60 == 0){
 /*
         // 向前端发信
 
-        //toSend会有的，不用考虑实现
+        //通过bundle.toSend获取要发送的对象
+        
         //只发送改变了位置或状态(flags)的对象
         gObjContainer toSend;
         SendPackContainer mesContainer
@@ -334,7 +335,6 @@ if ((frameCount++) % 60 == 0){
 
 
 
-// 可能用vector和list可以实现
 
 template <typename ManagerT, typename... GridManagingGameObjTypes>
 inline void mGame<ManagerT, GridManagingGameObjTypes...>::printEntityGrids()

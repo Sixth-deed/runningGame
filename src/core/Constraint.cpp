@@ -106,55 +106,80 @@ void PhysicsContactConstraint::init()
 void PhysicsContactConstraint::solve_v()
 {
     using namespace gMath;
-
-    // 求解摩擦冲量
-    const double tangentDv = tangent.dot(dv), normalDv = normal.dot(dv);
-    const double maxtangentimpulse = friction * oldNormalImpulse;
-    double lambda_t = -tangent_inv_effectiveMass * tangentDv;
-    const double t_otI = oldTangentImpulse;
-    oldTangentImpulse = gMath::clamp(oldTangentImpulse + lambda_t, -maxtangentimpulse, maxtangentimpulse);
-    lambda_t = oldTangentImpulse - t_otI;
-    if (lambda_t > 0.0)
+    if (cstState == ConstraintState::OnGoing)
     {
-        const tVector &impulse_t = tangent * lambda_t;
+        // 求解摩擦冲量
+        const double tangentDv = tangent.dot(dv), normalDv = normal.dot(dv);
+        const double maxtangentimpulse = friction * oldNormalImpulse;
+        double lambda_t = -tangent_inv_effectiveMass * tangentDv;
+        const double t_otI = oldTangentImpulse;
+        oldTangentImpulse = gMath::clamp(oldTangentImpulse + lambda_t, -maxtangentimpulse, maxtangentimpulse);
+        lambda_t = oldTangentImpulse - t_otI;
+        if (lambda_t != 0.0)
+        {
+            const tVector &impulse_t = tangent * lambda_t;
+            pt1->applyImpulse_v(impulse_t, toCp1);
+            pt2->applyImpulse_v(impulse_t.reverse(), toCp2);
+        }
+        // 求解弹性冲量
+        double lambda_n = normal_inv_effectiveMass * normalDv * restitution;
+        const double n_otI = oldNormalImpulse;
+        oldNormalImpulse = std::max(0.0, oldNormalImpulse + lambda_n);
+        lambda_n = oldNormalImpulse - n_otI;
+        if (lambda_n != 0.0)
+        {
+            const tVector &impulse_n = normal * lambda_n;
+            pt1->applyImpulse_v(impulse_n.reverse(), toCp1);
+            pt2->applyImpulse_v(impulse_n, toCp2);
+        }
+        cstManager->renewDvFor(pt1);
+        cstManager->renewDvFor(pt2);
+    }
+}
+
+void PhysicsContactConstraint::solve_p()
+{
+    if (cstState == ConstraintState::OnGoing)
+    {
+        const gMath::tVector delta = (ett1->getCrd() + toCp1) - (ett2->getCrd() + toCp2);
+        if (delta.dot(normal) >= 0)
+        {
+            return;
+        }
+        const double penetration = -delta.dot(normal);
+        const double bias = std::min(0.0, maxPenetraintion - penetration * posBiasFactor);
+        const double lambda = -normal_inv_effectiveMass * bias;
+        if (lambda > 0.0)
+        {
+            const gMath::tVector impulse = normal * lambda;
+            pt1->moveFix(impulse.reverse() * pt1->getInverseMass());
+            pt1->rotateFix(-(toCp1.cross(impulse) * pt1->getInverseInertia()));
+
+            pt2->moveFix(impulse * pt2->getInverseMass());
+            pt2->rotateFix(toCp2.cross(impulse) * pt2->getInverseInertia());
+        }
+    }
+}
+
+void PhysicsContactConstraint::warmStart()
+{   
+    if (cstState != ConstraintState::OnGoing){
+        return;
+    }
+    if (oldTangentImpulse != 0.0)
+    {
+        const gMath::tVector &impulse_t = tangent * oldTangentImpulse;
         pt1->applyImpulse_v(impulse_t, toCp1);
         pt2->applyImpulse_v(impulse_t.reverse(), toCp2);
     }
-    // 求解弹性冲量
-    double lambda_n = normal_inv_effectiveMass * normalDv * restitution;
-    const double n_otI = oldNormalImpulse;
-    oldNormalImpulse = std::max(0.0, oldNormalImpulse + lambda_n);
-    lambda_n = oldNormalImpulse - n_otI;
-    if (std::abs(lambda_n) > 0.0)
+    if (oldNormalImpulse != 0.0)
     {
-        const tVector &impulse_n = normal * lambda_n;
+        const gMath::tVector &impulse_n = normal * oldNormalImpulse;
         pt1->applyImpulse_v(impulse_n.reverse(), toCp1);
         pt2->applyImpulse_v(impulse_n, toCp2);
     }
     renewDv();
 }
-
-void PhysicsContactConstraint::solve_p()
-{
-    const gMath::tVector delta = (ett1->getCrd() + toCp1) - (ett2->getCrd() + toCp2);
-    if (delta.dot(normal) > 0)
-    {
-        return;
-    }
-    const double penetration = -delta.dot(normal);
-    const double bias = std::max(0.0, maxPenetraintion - penetration * posBiasFactor);
-    const double lambda = -normal_inv_effectiveMass * bias;
-    if (lambda > 0.0)
-    {
-        const gMath::tVector impulse = normal * lambda;
-        pt1->moveFix(impulse.reverse() * pt1->getInverseMass());
-        pt1->rotateFix(-(toCp1.cross(impulse) * pt1->getInverseInertia()));
-
-        pt2->moveFix(impulse * pt2->getInverseMass());
-        pt2->rotateFix(toCp2.cross(impulse) * pt2->getInverseInertia());
-    }
-}
-
 void SolveChain::updateAll()
 {
     Constraint *pt = head;
@@ -193,6 +218,7 @@ void mVelAndPosSolver::solveAll()
         while (pt)
         {
             pt->solve();
+            pt->warmStart();
             pt = pt->getNext();
         }
     }
@@ -216,7 +242,7 @@ void mVelAndPosSolver::solveAll()
             pt = pt->getNext();
         }
     }
-    // 可能要check，仍出现过大的重合冻结画面
+    // 可能要check，如出现过大的重合冻结画面
 }
 
 bool ContactConstraint::seperated()

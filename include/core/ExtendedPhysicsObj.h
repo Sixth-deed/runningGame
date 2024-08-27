@@ -231,6 +231,9 @@ inline void MovePhysicsObj::act()
 
 inline void MovePhysicsObj::Integrate(double dt)
 {
+    if (isSleeping){
+        return;
+    }
     crd += velocity * dt;
     if (velocity.magnitude() >= MIN_VELOCITY_COUNT)
     {
@@ -249,7 +252,9 @@ inline void MovePhysicsObj::Integrate(double dt)
 
 inline void MovePhysicsObj::moveFix(const gMath::tVector &&fix)
 {
-    crd += fix;
+    if (!isSleeping){
+        crd += fix;
+    }
 }
 
 class StablePhysicsObj : virtual public PhysicsObj
@@ -328,34 +333,10 @@ public:
     constexpr bool isMovable() const {return movable;}
     constexpr bool isRotatable()  const {return rotatable;}
     constexpr bool isEntity() const {return is_an_Entity;}
-    /**
-     * @brief Constructs a new instance of the RotatePhysicsObj class with default values.
-     *
-     * This constructor is used to create a new instance of the RotatePhysicsObj class with default values.
-     *
-     * @tparam managerT The type of the manager.
-     * @param m The reference to the manager.
-     * @param crd The position of the object.
-     * @param angle_ The angle of the object.
-     *
-     * @return A reference to the newly created RotatePhysicsObj object.
-     */
-    /*
-    template <typename managerT>
-    static RotatePhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_ = 0.0)
-    {
-        return basicObjInit<RotatePhysicsObj>(m, crd, angle_);
-    }
-
-    template <typename managerT>
-    static RotatePhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl,
-                                    double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0,
-                                    bool graviityAffected_ = true, bool dragAffected_ = true,
-                                    const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0,double inertia_ = 1.0); */
     static void initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl,
                         double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0,
                         bool graviityAffected_ = true, bool dragAffected_ = true,
-                        const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0, double inertia_ = 1.0);
+                        const double angleV = 0.0, const double angleA = 0.0, double inertia_ = 1.0);
     /*
     template <typename managerT>
     static RotatePhysicsObj &newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &cl,
@@ -363,7 +344,7 @@ public:
     bool graviityAffected_ = true, bool dragAffected_ = true ,const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0); */
     static void initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl,
                         double mass_ = 1.0, double friction_C_ = 0.0, double restitution_C_ = 1.0,
-                        bool graviityAffected_ = true, bool dragAffected_ = true, const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0);
+                        bool graviityAffected_ = true, bool dragAffected_ = true, const double angleV = 0.0, const double angleA = 0.0);
 
     inline void applyForceOnCenter(const gMath::tVector &force) override {}
     inline void applyImpulseOnCenter(const gMath::tVector &impulse) override {}
@@ -382,6 +363,9 @@ public:
     }
     void Integrate(double dt) override
     {
+        if (isSleeping){
+        return;
+        }
         angle += angleVelocity * dt;
         if (angleVelocity >= MIN_ROTATION_VECLOCITY_COUNT)
         {
@@ -396,7 +380,7 @@ public:
     }
     void moveFix(const gMath::tVector &&fix) override {}
     void rotateFix(const gMath::Angle &&anglefix) override;
-    const gMath::Angle& getAngleVelocity() const
+    double getAngleVelocity() const
     {
         return angleVelocity;
     }
@@ -515,7 +499,7 @@ public:
     */
     static void initObj(LiberalPhysicsObj *t, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &&cl,
                         double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_,
-                        const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0, double inertia_ = 1.0,
+                        const double angleV = 0.0, const  double angleA = 0.0, double inertia_ = 1.0,
                         const gMath::tVector &initialVelocity = gMath::tVector(0.0, 0.0), const gMath::tVector &initialAccelr = gMath::tVector(0.0, 0.0))
     {
         PhysicsObj::initObj(t, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
@@ -537,7 +521,7 @@ public:
 
     static void initObj(LiberalPhysicsObj *t, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &&cl,
                         double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_,
-                        const gMath::Angle &angleV = 0.0, const gMath::Angle &angleA = 0.0,
+                        const double angleV = 0.0, const double angleA = 0.0,
                         const gMath::tVector &initialVelocity = gMath::tVector(0.0, 0.0), const gMath::tVector &initialAccelr = gMath::tVector(0.0, 0.0))
     {
         initObj(t, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, caculateInertia(mass_, cl.getShape()), initialVelocity, initialAccelr);
@@ -550,29 +534,14 @@ public:
     {
         return velocity;
     }
-    const gMath::Angle& getAngleVelocity() const
+    double getAngleVelocity() const
     {
         return angleVelocity;
     }
 };
 
-/*
-template <typename managerT>
-inline RotatePhysicsObj &RotatePhysicsObj::newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV, const gMath::Angle &angleA ,double inertia_)
-{
-        RotatePhysicsObj &t = m.template acquire<RotatePhysicsObj>();
-        initObj(&t, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, inertia_);
-        return t;
-}
-#include <vector>
-double caculateInertia(double mass_, std::vector<gMath::tVector> *shape);
-template <typename managerT>
-inline RotatePhysicsObj &RotatePhysicsObj::newObj(managerT &m, const gMath::Crdinate &crd, gMath::Angle angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV , const gMath::Angle &angleA )
-{
-    return newObj(m, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, caculateInertia(mass_, cl.getShape()));
-}
-*/
-inline void RotatePhysicsObj::initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV, const gMath::Angle &angleA, double inertia_)
+
+inline void RotatePhysicsObj::initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const double angleV, const double angleA, double inertia_)
 {
     PhysicsObj::initObj(pt, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_);
     RotateObj::initObj(pt, crd, angle_, angleV, angleA);
@@ -580,7 +549,7 @@ inline void RotatePhysicsObj::initObj(RotatePhysicsObj *pt, const gMath::Crdinat
     pt->inverseInertia = 1 / inertia_;
 }
 
-inline void RotatePhysicsObj::initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const gMath::Angle &angleV, const gMath::Angle &angleA)
+inline void RotatePhysicsObj::initObj(RotatePhysicsObj *pt, const gMath::Crdinate &crd, const gMath::Angle &angle_, clsn::CollisionBox &&cl, double mass_, double friction_C_, double restitution_C_, bool graviityAffected_, bool dragAffected_, const double angleV, const double angleA)
 {
     initObj(pt, crd, angle_, std::move(cl), mass_, friction_C_, restitution_C_, graviityAffected_, dragAffected_, angleV, angleA, caculateInertia(mass_, cl.getShape()));
 }
@@ -613,11 +582,16 @@ inline void RotatePhysicsObj::applyImpulse_v(const gMath::tVector &impulse, cons
 
 inline void RotatePhysicsObj::rotateFix(const gMath::Angle &&anglefix)
 {
-    angle += anglefix;
+    if (!isSleeping){
+        angle += anglefix;
+    }
 }
 
 inline void LiberalPhysicsObj::Integrate(double dt)
 {
+    if (isSleeping){
+        return;
+    }
     bool toSleep = !moved && !rotated;
     
     crd += velocity * dt;
