@@ -45,13 +45,13 @@ public:
 
     void on_open(connection_hdl hdl) {
         // 连接打开时的处理
-//        LOG_DEBUG (std::string("Connection opened") );
+        LOG_DEBUG (std::string("Connection opened") );
         m_connections.insert(hdl);
     }
 
     void on_close(connection_hdl hdl) {
         // 连接关闭时的处理
-//        LOG_DEBUG (std::string("Connection closed") );
+        LOG_DEBUG (std::string("Connection closed") );
         m_connections.erase(hdl);
     }
 
@@ -67,7 +67,7 @@ public:
         // 接收到消息时的处理
         unsigned int mes = std::stoi(msg->get_payload());
         mes_queue.push(mes);
-//        LOG_DEBUG ("Received message: " + msg->get_payload()) ;
+        LOG_DEBUG ("Received message: " + msg->get_payload()) ;
     }
 
     static std::queue<unsigned int>& get_mes_queue(){
