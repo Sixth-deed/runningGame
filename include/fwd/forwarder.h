@@ -1,5 +1,6 @@
 #include "core/gObj.h"
 #include <cstdint>
+#include <mutex>
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 #include <nlohmann/json.hpp>
@@ -55,22 +56,16 @@ public:
         m_connections.erase(hdl);
     }
 
-    //c++的switch只能使用数值类型
-    //因此msg的类型信息需要靠前端和后端约定
-    //暂时假设这样3个消息
-    // 0. 暂停
-    // 1. 恢复
-    // 2. 退出游戏
-
-    std::queue<unsigned int> mes_queue;
-    void on_message(connection_hdl hdl, server::message_ptr msg) {
+        void on_message(connection_hdl hdl, server::message_ptr msg) {
         // 接收到消息时的处理
         unsigned int mes = std::stoi(msg->get_payload());
+        std::lock_guard<std::mutex> lock(queueMutex);
         mes_queue.push(mes);
         LOG_DEBUG ("Received message: " + msg->get_payload()) ;
     }
 
     static std::queue<unsigned int>& get_mes_queue(){
+        std::lock_guard<std::mutex> lock(get_server()->queueMutex);
         return get_server()->mes_queue;
     }
 
@@ -87,11 +82,13 @@ public:
     }
 
     static void send_obj(gObj* pt){
+        std::lock_guard<std::mutex> lock(get_server()->serverMutex);
         for (auto &hdl : get_server()->m_connections) {
             get_server()->send_mes(hdl,pt);
         }
     }
     static void initServer(uint16_t port){
+        std::lock_guard<std::mutex> lock(get_server()->serverMutex);
         get_server()->run(port);
     }
     static WebSocketServer* get_server(){
@@ -100,8 +97,18 @@ public:
     }
 
 private:
+    std::mutex serverMutex;
     server m_server;
     std::set<connection_hdl, std::owner_less<connection_hdl>> m_connections;
+    //c++的switch只能使用数值类型
+    //因此msg的类型信息需要靠前端和后端约定
+    //暂时假设这样3个消息
+    // 0. 暂停
+    // 1. 恢复
+    // 2. 退出游戏
+    std::mutex queueMutex;
+    std::queue<unsigned int> mes_queue;
+
 };
 
 inline json to_json(const gObj& obj){

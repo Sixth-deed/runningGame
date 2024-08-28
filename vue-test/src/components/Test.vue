@@ -14,7 +14,8 @@
     };
 
     ws.onmessage = function(event) {
-        console.log(event.data);
+        const obj = JSON.parse(event.data);
+        console.log(obj);
     };
 
     ws.onclose = function() {
