@@ -1,2 +1,1 @@
-多边形转动惯量计算有误，转动惯量过大导致对象几乎不旋转
-src/core/ExtendedPhysicsObj.h:14 double caculateInertia(...){...}
+把g++的warning能解决的全部解决

@@ -497,7 +497,12 @@ namespace gMath
                 }
             }
         }
-
+        template <typename FuncT>
+        void forEachNode(FuncT func){
+            for (auto it = adjacencyList.begin(); it != adjacencyList.end(); it++){
+                func(it->first);
+            }
+        }
         bool containsNode(const T &value) const
         {
             return adjacencyList.find(value) != adjacencyList.end();
@@ -518,6 +523,12 @@ namespace gMath
         void removeEdge(const T& from, const T& to){
             adjacencyList[from].erase(to);
             adjacencyList[to].erase(from);
+            if (adjacencyList[from].empty()){
+                adjacencyList.erase(from);
+            }
+            if (adjacencyList[to].empty()){
+                adjacencyList.erase(to);
+            }
         }
         
     private:

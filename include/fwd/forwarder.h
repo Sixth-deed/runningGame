@@ -48,6 +48,9 @@ public:
         // 连接打开时的处理
         LOG_DEBUG (std::string("Connection opened") );
         m_connections.insert(hdl);
+        std::lock_guard<std::mutex> lk(connectMutex);
+        connectionStarted = true;
+        connect_cv.notify_one();
     }
 
     void on_close(connection_hdl hdl) {
@@ -80,24 +83,36 @@ public:
         // 发送 JSON 数据到前端
         m_server.send(hdl, json_str, websocketpp::frame::opcode::text);
     }
+    void send_mes(connection_hdl hdl,const std::string& msg){
+        // 发送 JSON 数据到前端
+        m_server.send(hdl, msg, websocketpp::frame::opcode::text);
+    }
 
     static void send_obj(gObj* pt){
-        std::lock_guard<std::mutex> lock(get_server()->serverMutex);
         for (auto &hdl : get_server()->m_connections) {
             get_server()->send_mes(hdl,pt);
         }
     }
+    static void send_released_id(int id){
+        for (auto &hdl : get_server()->m_connections) {
+            json j = json{
+                {"id", id},
+                {"flags", "released"}
+            };
+            get_server()->send_mes(hdl,j.dump());
+        }
+    }
     static void initServer(uint16_t port){
-        std::lock_guard<std::mutex> lock(get_server()->serverMutex);
         get_server()->run(port);
     }
     static WebSocketServer* get_server(){
         static WebSocketServer server;
         return &server;
     }
-
+    std::mutex connectMutex;
+    static std::condition_variable connect_cv;
+    bool connectionStarted = false;
 private:
-    std::mutex serverMutex;
     server m_server;
     std::set<connection_hdl, std::owner_less<connection_hdl>> m_connections;
     //c++的switch只能使用数值类型
@@ -108,6 +123,8 @@ private:
     // 2. 退出游戏
     std::mutex queueMutex;
     std::queue<unsigned int> mes_queue;
+    
+    
 
 };
 

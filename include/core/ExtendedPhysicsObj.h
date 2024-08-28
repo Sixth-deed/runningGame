@@ -89,48 +89,7 @@ class LiberalPhysicsObj;
 #include <cmath>
 #include <vector>
 
-double calculateInertia(double mass_, std::vector<gMath::tVector> *shape)
-{
-    const size_t v_size = shape->size();
-    
-    //分子
-    std::vector<double> child(v_size);
-    double child_sum=0;
-    for(int i=0;i<v_size;i++){
-        if(i!=0){
-            gMath::tVector v1 = shape->at(i-1);
-            gMath::tVector v2 = shape->at(i);
-            child[i] = abs(v1.cross(v2)) * (v1.sLen()+v1.dot(v2)+v2.sLen());
-            child_sum += child[i];
-        }
-        if(i==0){
-            gMath::tVector v1 = shape->at(v_size-1);
-            gMath::tVector v2 = shape->at(0);
-            child[i] = abs(v1.cross(v2)) * (v1.sLen()+v1.dot(v2)+v2.sLen());
-            child_sum += child[i];
-        }
-    }
-
-    //分母
-    std::vector<double> parent(v_size);
-    double parent_sum=0;
-    for(int i=0;i<v_size;i++){
-        if(i!=0){
-            gMath::tVector v1 = shape->at(i-1);
-            gMath::tVector v2 = shape->at(i);
-            parent[i] = abs(v1.cross(v2)) ;
-            parent_sum += parent[i];
-        }
-        if(i==0){
-            gMath::tVector v1 = shape->at(v_size-1);
-            gMath::tVector v2 = shape->at(0);
-            parent[i] = abs(v1.cross(v2)) ;
-            parent_sum += parent[i];
-        }
-    }
-
-    return mass_ * child_sum / (6 * parent_sum);
-};
+double calculateInertia(double mass_, std::vector<gMath::tVector> *shape);
 
 class MovePhysicsObj : virtual public PhysicsObj, virtual public MoveObj
 {

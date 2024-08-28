@@ -94,7 +94,9 @@ public:
         {
             fileStream.close();
         }
-        fileStream.open(filename, std::ios::app);
+        if (!filename.empty()){
+            fileStream.open(filename, std::ios::app);
+        }
     }
 
     void start()

@@ -75,7 +75,7 @@ public:
 
     void solveAll();
     void updateAll();
-
+    void updateToSend(std::unordered_set<mID> &toSend);
     //提供给VelAndPosConstraint使用
     void renewDvFor(EntityObj* ett);
 };
@@ -474,6 +474,16 @@ void ConstraintManager<cstTypes...>::updateAll()
     }
 }
 
+template <typename... cstTypes>
+inline void ConstraintManager<cstTypes...>::updateToSend(std::unordered_set<mID> &toSend)
+{
+    cstGraph.forEachNode([&toSend](EntityObj *ett) {
+        if (!ett->isSleep())
+        {
+            toSend.insert(ett->getID());
+        }
+    });
+}
 
 inline void PhysicsContactConstraint::renewDv()
 {

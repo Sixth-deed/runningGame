@@ -25,8 +25,9 @@
 struct gameLoopBundle
 {
     int numOfActiveMoveObj;
-    std::vector<gObj *> toSend;
-    gameLoopBundle() : numOfActiveMoveObj(1), toSend() {}
+    std::unordered_set<mID> toSend;
+    std::unordered_set<mID> toRelease;
+    gameLoopBundle() : numOfActiveMoveObj(1), toSend(),toRelease() {}
 };
 
 /*游戏实例虚基类，定义接口用*/
@@ -59,7 +60,7 @@ protected:
 
     std::tuple<GridManager<GridManagingGameObjTypes>...> GridManagers;
 
-    const std::tuple<Grid<GridManagingGameObjTypes> *...> &rootGrids;
+    const std::tuple<Grid<GridManagingGameObjTypes> *...> rootGrids;
 
     std::tuple<std::vector<Grid<GridManagingGameObjTypes> *> *...> activeGridsTuple;
 
@@ -69,7 +70,7 @@ protected:
     gObjType &newObj(Args... args)
     {
         gObjType &obj = gObjType::newObj(mainObjManager, args...);
-        bundle.toSend.push_back(&obj);
+        bundle.toSend.insert(obj.getID());
         env.emplace(obj.getID(), static_cast<gObj *>(&obj));
         return obj;
     }
@@ -119,8 +120,7 @@ public:
         return std::tuple<GridManager<GridManagingGameObjTypes>...>(GridManager<GridManagingGameObjTypes>(initialSizes[Is])...);
     }
 
-    template <std::size_t... Is>
-    std::tuple<Grid<GridManagingGameObjTypes> *...> createRootGrids(std::index_sequence<Is...>, const gMath::mRectangle &rect)
+    std::tuple<Grid<GridManagingGameObjTypes> *...> createRootGrids( const gMath::mRectangle &rect)
     {
 
         return std::tuple<Grid<GridManagingGameObjTypes> *...>(Grid<GridManagingGameObjTypes>::newGrid(rect)...);
@@ -178,7 +178,7 @@ template <typename ManagerT, typename... GridManagingGameObjTypes>
 mGame<ManagerT, GridManagingGameObjTypes...>::mGame(std::initializer_list<std::size_t> initialSizes, std::initializer_list<std::tuple<int, int>> gridsInitialize, const gMath::mRectangle &rect, PhysicsEngine *const engine) : mainObjManager(initialSizes),
                                                                                                                                                                                                                                 GridManagers(createGridManagers(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), gridsInitialize.begin())),
                                                                                                                                                                                                                                 rootGrids((initilizeGridMangerRfr(),
-                                                                                                                                                                                                                                           createRootGrids(std::make_index_sequence<sizeof...(GridManagingGameObjTypes)>(), rect))),
+                                                                                                                                                                                                                                           createRootGrids( rect))),
                                                                                                                                                                                                                                 mainEngine(engine)
 {
     initializeActiveGrids();
@@ -219,6 +219,7 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::releaseObjs(std::unordered_se
         }
         env.erase(id);
     }
+   
 }
 
 template <typename ManagerT, typename... GridManagingGameObjTypes>
@@ -251,22 +252,22 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
         if (gameState == RUNNING)
         {
             std::unordered_set<mID> toUpdate(bundle.numOfActiveMoveObj * 2);
-            std::unordered_set<mID> toRelease(3);
             auto start = std::chrono::steady_clock::now();
 
             for (Grid<ActObj> *actobjGrid_p : *(activeGrids<ActObj>()))
             {
-                actobjGrid_p->forEachInGrid([&toUpdate](ActObj *actObj_p)
+                actobjGrid_p->forEachInGrid([&toUpdate, this](ActObj *actObj_p)
                                             {
                  actObj_p->act();
                  if (actObj_p ->isMovable() && !actObj_p->isSleep()){
                     toUpdate.insert(actObj_p->getID());
+                    this->bundle.toSend.insert(actObj_p->getID());
                  } });
             }
             updateActiveGrids();
             std::unordered_set<mID> toupdateReference(toUpdate.begin(), toUpdate.end());
-            ActiveGridsRefernceUpdate(toupdateReference, toRelease);
-            releaseObjs(toRelease);
+            ActiveGridsRefernceUpdate(toupdateReference, bundle.toRelease);
+            releaseObjs(bundle.toRelease);
 
 #ifdef DEBUG
             //   LOG_DEBUG(str("in GameLoop EntityGrids: \n\t"));
@@ -289,6 +290,8 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
             }
             mainEngine->getCstManager()->updateAll();
             mainEngine->getCstManager()->solveAll();
+            mainEngine->getCstManager()->updateToSend(bundle.toSend);
+
 
             solveServerMessages();
 
@@ -314,12 +317,17 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
 #endif
 #endif
 
-            for (gObj *gobj : bundle.toSend)
+            for (mID gobj_id : bundle.toSend)
             {
-                WebSocketServer::send_obj(gobj);
+                WebSocketServer::send_obj(env[gobj_id]);
             }
+            //TODO: 改写tosend的生成逻辑
             bundle.toSend.clear();
-
+            for (mID gobj_id : bundle.toRelease)
+            {
+                WebSocketServer::send_released_id(gobj_id);
+            }
+            bundle.toRelease.clear();
             auto end = std::chrono::steady_clock::now();
             auto elasped = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
             if (elasped < clocksPerFrame)
@@ -328,6 +336,7 @@ void mGame<ManagerT, GridManagingGameObjTypes...>::GameLoop()
         else if (gameState == PAUSED)
         {
             solveServerMessages();
+            std::this_thread::sleep_for(clocksPerFrame);
         }
         else if (gameState == TO_QUIT)
         {
